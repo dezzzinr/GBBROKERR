@@ -57,6 +57,9 @@ const navGroups: { label: string; items: { name: Page; icon: typeof LayoutDashbo
   { label: "ACCOUNT", items: [{ name: "Profile", icon: UserRound }, { name: "Deposit", icon: ArrowDownLeft }, { name: "Withdraw", icon: ArrowUpRight }, { name: "Transactions", icon: CreditCard }, { name: "Trade History", icon: History }, { name: "Notifications", icon: Bell }] },
 ];
 const fmtQty = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 8 });
+function supportBadge(trade: AppData["trades"][number]) {
+  return trade.placedBy ? <span className="placed-by-support-badge"> <UserRound size={11}/> Admin</span> : null;
+}
 function AssetIcon({ asset, size = 38 }: { asset: Asset; size?: number }) {
   const [imageFailed, setImageFailed] = useState(false);
   return <span className="asset-icon" style={{ width: size, height: size, background: asset.image && !imageFailed ? "transparent" : asset.color, fontSize: size * .52 }}>
