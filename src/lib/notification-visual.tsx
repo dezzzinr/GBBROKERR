@@ -42,6 +42,7 @@ export function notificationVisual(type?: string): { Icon: typeof Sparkles; colo
     case "admin_debit": return { Icon: Wallet, color: "red" };
     case "profit_credit": return { Icon: TrendingUp, color: "green" };
     case "profit_debit": return { Icon: TrendingUp, color: "red" };
+    case "profit_to_capital": return { Icon: ArrowLeftRight, color: "blue" };
     case "account_status_changed": return { Icon: AlertTriangle, color: "amber" };
     case "admin_message": return { Icon: ShieldCheck, color: "purple" };
     case "referral_bonus": return { Icon: Gift, color: "green" };
