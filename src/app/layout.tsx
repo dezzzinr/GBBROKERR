@@ -5,7 +5,7 @@ import SmartsuppWidget from "@/components/smartsupp-widget";
 import { LanguageProvider } from "@/components/i18n-provider";
 
 export const metadata: Metadata = {
-  title: "Tetratrades — Crypto Trading",
+  title: "Denary Drill Capital Markets (DDCM)",
   description: "A modern crypto trading workspace to explore markets, manage a portfolio, and test strategies with simulated funds.",
 };
 

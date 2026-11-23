@@ -1,4 +1,5 @@
 "use client";
+import DdcmMark from "@/components/ddcm-mark";
 
 import { LocalizedText, useLanguage } from "@/components/i18n-provider";
 import { useEffect, useState } from "react";
@@ -8,6 +9,7 @@ import { notificationVisual, timeAgo } from "@/lib/notification-visual";
 import { DEPOSIT_METHODS, depositMethodLabel, type DepositMethod } from "@/lib/deposits";
 import { withdrawalMethodLabel } from "@/lib/withdrawals";
 import { COUNTRIES, DEFAULT_COUNTRY, flagEmoji } from "@/lib/countries";
+import { BOT_PLAN_TIERS } from "@/lib/bots";
 import { ACCOUNT_STATUSES, accountStatusLabel, type AccountStatus } from "@/lib/accounts";
 import { ConfirmProvider, useConfirm } from "@/components/confirm-provider";
 import { ThemeProvider, useTheme } from "@/components/theme-provider";
@@ -32,7 +34,7 @@ type WithdrawalRequestRow = {
 };
 type DepositAccountRow = { id: string; method: string; label: string; instructions: string; isActive: boolean; createdAt: string; updatedAt: string };
 
-type AdminUserRow = { id: string; name: string; email: string; role: string; isDemo: boolean; cashBalance: string; profitBalance: string; targetBalance: string; targetProgressPercent: string; accountStatus: string; maxTradeAmount: string | null; withdrawalsBlocked: boolean; statusReason: string | null; statusUpdatedAt: string | null; createdAt: string; username?: string | null; phone?: string | null; country?: string | null; currency?: string | null };
+type AdminUserRow = { id: string; name: string; email: string; role: string; isDemo: boolean; cashBalance: string; profitBalance: string; targetBalance: string; targetProgressPercent: string; signalStrength: string; signalPrice100: string | null; emailVerifiedAt: string | null; accountStatus: string; maxTradeAmount: string | null; withdrawalsBlocked: boolean; statusReason: string | null; statusUpdatedAt: string | null; createdAt: string; username?: string | null; phone?: string | null; country?: string | null; currency?: string | null };
 type UserDetail = {
   user: AdminUserRow;
   holdings: { id: string; symbol: string; quantity: string; avgPrice: string }[];
@@ -43,13 +45,14 @@ type UserDetail = {
 };
 type Overview = { totalUsers: number; totalCashBalance: string; totalProfitBalance: string; pendingDeposits: number; pendingWithdrawals: number; restrictedAccounts: number };
 
-type Tab = "overview" | "notifications" | "users" | "deposits" | "withdrawals" | "accounts" | "broadcast";
+type Tab = "signal-requests" | "overview" | "notifications" | "users" | "deposits" | "withdrawals" | "accounts" | "broadcast";
 const navGroups: { label: string; items: { name: Tab; label: string; icon: typeof LayoutDashboard }[] }[] = [
   { label: "OVERVIEW", items: [{ name: "overview", label: "Overview", icon: LayoutDashboard }, { name: "notifications", label: "Notifications", icon: Bell }] },
-  { label: "USERS", items: [{ name: "users", label: "Manage users", icon: UsersRound }, { name: "broadcast", label: "Broadcast message", icon: Send }] },
+  { label: "USERS", items: [{ name: "users", label: "Manage users", icon: UsersRound }, { name: "signal-requests", label: "Signal requests", icon: Activity }, { name: "broadcast", label: "Broadcast message", icon: Send }] },
   { label: "PAYMENTS", items: [{ name: "deposits", label: "Deposit requests", icon: ArrowDownLeft }, { name: "withdrawals", label: "Withdrawal requests", icon: ArrowUpRight }, { name: "accounts", label: "Deposit destinations", icon: CreditCard }] },
 ];
 const tabTitles: Record<Tab, { title: string; description: string }> = {
+  "signal-requests": { title: "Signal requests", description: "Review requests before charging capital and increasing signal strength." },
   overview: { title: "Overview", description: "A quick snapshot of your platform's users, payments, and subscriptions." },
   notifications: { title: "Notifications", description: "Every notable event across every user account, in one place." },
   users: { title: "Manage users", description: "View every account, edit profiles, change access, send notifications, place trades, and adjust balances." },
@@ -87,54 +90,6 @@ const FUNDING_CURRENCIES = [
 // real rate for the chosen currency the preview warns here and the server
 // rejects the request, because converting at 1:1 would credit e.g. $1,331
 // instead of $1 for an NGN amount.
-function FundingCurrency({ id, value, onChange, amounts, rates, status }: {
-  id: string;
-  value: string;
-  onChange: (currency: string) => void;
-  // One entry per amount input this currency applies to (the create-user form
-  // has two: starting balance and starting profits). Labels are only shown
-  // when there's more than one, to keep the single-amount forms compact.
-  amounts: { label?: string; value: string }[];
-  rates: Record<string, number> | null;
-  status: string;
-}) {
-  const rate = value === "USD" ? 1 : rates?.[value];
-  const hasRate = typeof rate === "number" && Number.isFinite(rate) && rate > 0;
-  const showLabels = amounts.length > 1;
-  const previews = hasRate
-    ? amounts
-        .map((a) => ({ label: a.label, entered: Number(a.value), usd: Number(a.value) / (rate as number) }))
-        .filter((a) => Number.isFinite(a.entered) && a.entered > 0)
-    : [];
-  const stale = status === "stale" ? " · rate may be slightly delayed" : "";
-  return (
-    <div>
-      <label className="input-label" htmlFor={id}>{<LocalizedText text={"Amount currency"}/>}</label>
-      <div className="select-wrap">
-        <select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
-          {FUNDING_CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
-      </div>
-      {value === "USD" ? (
-        <p className="input-hint">{<LocalizedText text={"Stored as entered — the ledger is USD."}/>}</p>
-      ) : !hasRate ? (
-        <p className="input-hint" style={{ color: "var(--tint-red-fg)" }}>
-          {<LocalizedText text={"No exchange rate available for"}/>} {value} {<LocalizedText text={"right now. Enter the amount in USD instead."}/>}
-        </p>
-      ) : (
-        <>
-          {previews.map((p, i) => (
-            <p className="input-hint" key={i}>
-              {<LocalizedText text={"Will store"}/>} <strong>{formatMoney(p.usd, "USD", 1)}</strong>{showLabels && p.label ? ` for ${p.label}` : ""}
-            </p>
-          ))}
-          <p className="input-hint">{<LocalizedText text={"1 USD ="}/>} {formatInCurrency(rate as number, value, 4)}{stale}</p>
-        </>
-      )}
-    </div>
-  );
-}
-
 export default function AdminPage() {
   return <ThemeProvider><ConfirmProvider><AdminPageInner /></ConfirmProvider></ThemeProvider>;
 }
@@ -244,6 +199,34 @@ function AdminPageInner() {
   // Jump from a notification straight to the account it's about.
   const viewAccountFromNotification = (userId: string) => { setNotificationsOpen(false); setTab("users"); openUser(userId); };
 
+  const [signalRequests, setSignalRequests] = useState<{ id: string; userId: string; userName: string; userEmail: string | null; percent: number; price100: string; cost: string; status: string; createdAt: string; currentSignal: string; capital: string }[]>([]);
+  const [signalRequestsLoading, setSignalRequestsLoading] = useState(false);
+  const [signalReviewBusy, setSignalReviewBusy] = useState<string | null>(null);
+  const loadSignalRequests = async () => {
+    setSignalRequestsLoading(true);
+    try {
+      const res = await fetch("/api/admin/signal-requests", { cache: "no-store" });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Unable to load signal requests.");
+      setSignalRequests(result.requests ?? []);
+    } catch (error) { notify(error instanceof Error ? error.message : "Unable to load signal requests.", true); }
+    finally { setSignalRequestsLoading(false); }
+  };
+  useEffect(() => authState === "ok" && tab === "signal-requests" ? deferEffect(() => { void loadSignalRequests(); }) : undefined, [authState, tab]);
+  const reviewSignalRequest = async (item: typeof signalRequests[number], action: "approve" | "reject") => {
+    if (signalReviewBusy) return;
+    if (!(await confirm({ title: action === "approve" ? "Approve signal request?" : "Reject signal request?", message: action === "approve" ? `Charge $${Number(item.cost).toFixed(2)} from ${item.userName}'s capital and add ${item.percent}% to their current signal strength? The balance and 100% limit will be checked again.` : `Reject ${item.userName}'s request? No capital will be charged.`, confirmLabel: action === "approve" ? "Approve and charge" : "Reject request", danger: true }))) return;
+    setSignalReviewBusy(item.id);
+    try {
+      const res = await fetch(`/api/admin/signal-requests/${item.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Unable to review request.");
+      notify(result.alreadyProcessed ? "Request was already reviewed." : action === "approve" ? "Request approved and capital charged." : "Request rejected.");
+      await loadSignalRequests();
+    } catch (error) { notify(error instanceof Error ? error.message : "Unable to review request.", true); await loadSignalRequests(); }
+    finally { setSignalReviewBusy(null); }
+  };
+
   const [statusFilter, setStatusFilter] = useState<"pending" | "approved" | "rejected" | "all">("pending");
   const [requests, setRequests] = useState<DepositRequestRow[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
@@ -299,6 +282,14 @@ function AdminPageInner() {
   const [userDetail, setUserDetail] = useState<UserDetail | null>(null);
   const [userDetailLoading, setUserDetailLoading] = useState(false);
 
+  const [userActionBusy, setUserActionBusy] = useState(false);
+  const [botPlanId, setBotPlanId] = useState("");
+  const [botAmount, setBotAmount] = useState("");
+  const [botBusy, setBotBusy] = useState(false);
+  const [activeBotIds, setActiveBotIds] = useState<string[]>([]);
+  const [botCatalogError, setBotCatalogError] = useState("");
+  const [botRequestId, setBotRequestId] = useState<string | null>(null);
+
   const [editUserForm, setEditUserForm] = useState({ name: "", email: "", role: "user" });
   const [editUserBusy, setEditUserBusy] = useState(false);
   const [statusForm, setStatusForm] = useState({ accountStatus: "active" as AccountStatus, maxTradeAmount: "", withdrawalsBlocked: false, statusReason: "" });
@@ -309,6 +300,8 @@ function AdminPageInner() {
   const [profitBusy, setProfitBusy] = useState(false);
   const [targetForm, setTargetForm] = useState({ newTarget: "", newProgress: "", signalStrength: "0", currency: "USD" });
   const [targetBusy, setTargetBusy] = useState(false);
+  const [signalPrice, setSignalPrice] = useState("");
+  const [signalPriceBusy, setSignalPriceBusy] = useState(false);
   const [notifForm, setNotifForm] = useState({ title: "", message: "" });
   const [notifBusy, setNotifBusy] = useState(false);
 
@@ -342,14 +335,70 @@ function AdminPageInner() {
       // Default each funding form to the target user's own display currency:
       // an admin funding a Nigerian user is most likely thinking in NGN. USD
       // stays selectable, and the picker previews the USD amount either way.
-      const fundCurrency = result.user.currency || "USD";
+      const fundCurrency = "USD";
       setBalanceForm({ newBalance: result.user.cashBalance, note: "", currency: fundCurrency });
       setProfitForm({ newProfit: result.user.profitBalance, note: "", currency: fundCurrency });
-      setTargetForm({ newTarget: result.user.targetBalance, newProgress: result.user.targetProgressPercent ?? "0", signalStrength: result.user.signalStrength ?? "0", currency: fundCurrency });
+      setSignalPrice(result.user.signalPrice100 ?? "");
+      setTargetForm({ newTarget: result.user.targetBalance, newProgress: result.user.targetProgressPercent ?? "0", signalStrength: result.user.signalStrength ?? "0", currency: "USD" });
     } catch (error) { notify(error instanceof Error ? error.message : "Unable to load this user", true); setSelectedUserId(null); } finally { setUserDetailLoading(false); }
   };
-  const openUser = (id: string) => { setSelectedUserId(id); void loadUserDetail(id); };
+  const openUser = (id: string) => {
+    setSelectedUserId(id); setBotPlanId(""); setBotAmount(""); setBotRequestId(null); setActiveBotIds([]); setBotCatalogError("");
+    void loadUserDetail(id);
+    void fetch("/api/bots", { cache: "no-store" }).then(async res => {
+      if (!res.ok) throw new Error("Unable to load active bot plans.");
+      const result = await res.json();
+      setActiveBotIds((result.bots ?? []).map((bot: { id: string }) => bot.id));
+    }).catch(() => setBotCatalogError("Unable to load active bot plans. Reopen this user to retry."));
+  };
   const closeUser = () => { setSelectedUserId(null); setUserDetail(null); void loadUsers(userSearch); };
+  const runUserAction = async (action: "approve" | "delete") => {
+    if (!selectedUserId || !userDetail || userActionBusy) return;
+    const approved = await confirm(action === "approve" ? {
+      title: "Approve this account without an OTP?",
+      message: "This grants access without proving that the user owns their email address. Only continue after checking their identity independently.",
+      confirmLabel: "Approve account",
+    } : {
+      title: "Permanently delete this user?",
+      message: `This permanently deletes ${userDetail.user.name} and their associated records, including sessions, trades, transactions, deposits and withdrawals. This cannot be undone.`,
+      confirmLabel: "Delete permanently", danger: true,
+    });
+    if (!approved) return;
+    if (action === "delete" && !(await confirm({ title: "Confirm permanent deletion", message: `Are you certain you want to permanently delete ${userDetail.user.name} and their records? This cannot be undone.`, confirmLabel: "Yes, delete permanently", danger: true }))) return;
+    setUserActionBusy(true);
+    try {
+      const res = await fetch(`/api/admin/users/${selectedUserId}`, action === "approve" ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "approve" }) } : { method: "DELETE" });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Unable to update user.");
+      notify(action === "approve" ? "Account approved." : "User permanently deleted.");
+      if (action === "delete") closeUser();
+      else await loadUserDetail(selectedUserId);
+    } catch (error) { notify(error instanceof Error ? error.message : "Unable to update user.", true); }
+    finally { setUserActionBusy(false); }
+  };
+
+  const startBotForUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUserId || !userDetail || botBusy) return;
+    const tier = BOT_PLAN_TIERS.find(item => item.id === botPlanId);
+    const amount = Number(botAmount);
+    if (!tier || !activeBotIds.includes(tier.id)) return notify("Choose an available bot plan.", true);
+    if (!/^\d+(\.\d{1,2})?$/.test(botAmount) || amount < tier.min || amount > tier.max) return notify(`Enter a USD amount from $${tier.min.toLocaleString()} to $${tier.max.toLocaleString()}, with at most two decimal places.`, true);
+    if (!(await confirm({ title: "Start bot plan for this user?", message: `This will debit $${amount.toFixed(2)} USD from ${userDetail.user.name}'s capital to start ${tier.name}. The plan does not expire.`, confirmLabel: "Start and debit capital", danger: true }))) return;
+    setBotBusy(true);
+    const requestId = botRequestId ?? crypto.randomUUID();
+    setBotRequestId(requestId);
+    try {
+      const res = await fetch(`/api/admin/users/${selectedUserId}/bot-subscriptions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ requestId, botProductId: tier.id, amount: botAmount }) });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Unable to start the plan.");
+      notify(result.alreadyProcessed ? "This subscription was already processed." : "Bot plan started and capital debited.");
+      setBotRequestId(null);
+      setBotAmount("");
+      await loadUserDetail(selectedUserId);
+    } catch (error) { notify(error instanceof Error ? error.message : "Unable to start the plan. Retry without changing the form.", true); }
+    finally { setBotBusy(false); }
+  };
 
   const createUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -440,25 +489,40 @@ function AdminPageInner() {
     } catch (error) { notify(error instanceof Error ? error.message : "Something went wrong", true); } finally { setProfitBusy(false); }
   };
 
-  const saveTarget = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedUserId || targetBusy) return;
-    const newTarget = Number(targetForm.newTarget);
-    if (!Number.isFinite(newTarget) || newTarget < 0) return notify("Enter a valid target amount.", true);
-    const newProgress = Number(targetForm.newProgress || 0);
-    if (!Number.isFinite(newProgress) || newProgress < 0 || newProgress > 100) return notify("Enter a valid progress percentage (0-100).", true);
-    const signalStrength = Number(targetForm.signalStrength || 0);
-    if (!Number.isFinite(signalStrength) || signalStrength < 0 || signalStrength > 100) return notify("Signal strength must be between 0 and 100.", true);
-    if (!(await confirm({ title: "Update these dashboard gauges?", message: `Target: ${fundingPreview(newTarget, targetForm.currency)}, trade progress: ${newProgress.toFixed(0)}%, signal strength: ${signalStrength.toFixed(0)}%.`, confirmLabel: "Update gauges" }))) return;
+  const saveGauge = async (gauge: "target" | "progress" | "signal") => {
+    if (!selectedUserId || targetBusy || !userDetail) return;
+    const raw = gauge === "target" ? targetForm.newTarget : gauge === "progress" ? targetForm.newProgress : targetForm.signalStrength;
+    const value = Number(raw);
+    if (!raw.trim() || !Number.isFinite(value) || value < 0 || value > (gauge === "target" ? 100000000 : 100)) return notify("Enter a valid gauge value.", true);
+    const expected = gauge === "target" ? userDetail.user.targetBalance : gauge === "progress" ? userDetail.user.targetProgressPercent : userDetail.user.signalStrength;
+    const label = gauge === "target" ? "Target amount" : gauge === "progress" ? "Trade progress" : "Signal strength";
+    const display = gauge === "target" ? fundingPreview(value, "USD") : `${value.toFixed(2)}%`;
+    if (!(await confirm({ title: `Update ${label.toLowerCase()}?`, message: `Set ${label.toLowerCase()} to ${display}? Other gauges will not change.`, confirmLabel: "Update" }))) return;
     setTargetBusy(true);
     try {
-      const res = await fetch(`/api/admin/users/${selectedUserId}/target-balance`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ newTarget, newProgress, signalStrength, currency: targetForm.currency }) });
+      const res = await fetch(`/api/admin/users/${selectedUserId}/target-balance`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ gauge, value, expected, currency: "USD" }) });
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Something went wrong");
-      notify(result.message || "Target updated");
-      setTargetForm({ newTarget: String(newTarget.toFixed(2)), newProgress: String(newProgress.toFixed(2)), signalStrength: String(signalStrength.toFixed(2)), currency: targetForm.currency });
+      if (!res.ok) throw new Error(result.error || "Unable to update gauge.");
+      notify(result.message || `${label} updated`);
       await loadUserDetail(selectedUserId);
     } catch (error) { notify(error instanceof Error ? error.message : "Something went wrong", true); } finally { setTargetBusy(false); }
+  };
+
+  const saveSignalPrice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUserId || signalPriceBusy) return;
+    const raw = signalPrice.trim();
+    if (raw && (!/^\d+(\.\d{1,2})?$/.test(raw) || Number(raw) < 0.01 || Number(raw) > 100000000)) return notify("Enter a valid USD price, or leave blank to disable purchases.", true);
+    if (!(await confirm({ title: "Update signal purchase price?", message: raw ? `Set the price for 100% signal strength to $${Number(raw).toFixed(2)} for this user?` : "Disable signal purchases for this user?", confirmLabel: "Save price" }))) return;
+    setSignalPriceBusy(true);
+    try {
+      const res = await fetch(`/api/admin/users/${selectedUserId}/signal-price`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ price: raw || null }) });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Unable to save price.");
+      notify(raw ? "Signal price saved." : "Signal purchases disabled.");
+      await loadUserDetail(selectedUserId);
+    } catch (error) { notify(error instanceof Error ? error.message : "Unable to save price.", true); }
+    finally { setSignalPriceBusy(false); }
   };
 
   const sendNotification = async (e: React.FormEvent) => {
@@ -620,7 +684,7 @@ function AdminPageInner() {
       <LockKeyhole size={28}/>
       <h2>{<LocalizedText text={"Admins only"}/>}</h2>
       <p>{<LocalizedText text={"You need an admin account to view this page. Sign in with an admin account on the main app, then come back here."}/>}</p>
-      <Link className="primary-btn" href="/"><ArrowLeft size={16}/> {<LocalizedText text={"Back to Tetratrades"}/>}</Link>
+      <Link className="primary-btn" href="/dashboard"><ArrowLeft size={16}/> {<LocalizedText text={"Back to Denary Drill Capital Markets"}/>}</Link>
     </div>
   </div>;
 
@@ -629,11 +693,11 @@ function AdminPageInner() {
   return <div className="admin-shell">
     {mobileMenu && <div className="mobile-overlay" onClick={() => setMobileMenu(false)}/>}
     <aside className={`sidebar ${mobileMenu ? "sidebar-open" : ""}`}>
-      <div className="brand" onClick={() => go("overview")}><div className="brand-icon"><Activity size={23} strokeWidth={3}/></div><span>{<LocalizedText text={"Tetra"}/>}<span>{<LocalizedText text={"Trades"}/>}</span></span><button className="mobile-close" onClick={(e) => { e.stopPropagation(); setMobileMenu(false); }}><X size={19}/></button></div>
+      <div className="brand" onClick={() => go("overview")}><div className="brand-icon"><DdcmMark size={23}/></div><span><span className="ddcm-wordmark">DDCM</span></span><button className="mobile-close" onClick={(e) => { e.stopPropagation(); setMobileMenu(false); }}><X size={19}/></button></div>
       <div className="sidebar-body">{navGroups.map(group => <div className="nav-group" key={group.label}><div className="nav-label">{group.label}</div>{group.items.map(item => { const Icon = item.icon; return <button key={item.name} className={`nav-item ${tab === item.name ? "selected" : ""}`} onClick={() => go(item.name)}><Icon size={19} strokeWidth={tab === item.name ? 2.25 : 1.8}/><span>{item.label}</span></button>; })}</div>)}</div>
       <div className="sidebar-bottom">
-        <div className="help-card"><span className="help-bubble"><ShieldCheck size={18}/></span><strong>{admin?.name}</strong><p>{admin?.email ?? translateUI("Signed in as admin")}</p><Link href="/" style={{ display: "flex", alignItems: "center", gap: 5, textDecoration: "none" }}>{<LocalizedText text={"Exit to app"}/>} <ArrowRight size={14}/></Link></div>
-        <div className="sidebar-footer"><ShieldCheck size={15}/> {<LocalizedText text={"Tetratrades admin panel"}/>}</div>
+        <div className="help-card"><span className="help-bubble"><ShieldCheck size={18}/></span><strong>{admin?.name}</strong><p>{admin?.email ?? translateUI("Signed in as admin")}</p><Link href="/dashboard" style={{ display: "flex", alignItems: "center", gap: 5, textDecoration: "none" }}>{<LocalizedText text={"Exit to app"}/>} <ArrowRight size={14}/></Link></div>
+        <div className="sidebar-footer"><ShieldCheck size={15}/> {<LocalizedText text={"Denary Drill Capital Markets admin panel"}/>}</div>
       </div>
     </aside>
     <div className="main-shell">
@@ -651,7 +715,7 @@ function AdminPageInner() {
               <button className="notification-see-all" onClick={() => { setNotificationsOpen(false); setTab("notifications"); }}>{<LocalizedText text={"See all notifications"}/>} <ArrowRight size={13}/></button>
             </div>}
           </div>
-          <button className="theme-toggle" aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"} onClick={toggleTheme}>{theme === "dark" ? <Sun size={19}/> : <Moon size={19}/>}</button>{currency !== "USD" && <span className="admin-whoami" title={translateUI("Change this from your Profile page in the main app")}><Wallet size={14}/> {<LocalizedText text={"Amounts in"}/>} {currency}</span>}<Link href="/" className="outline-btn small"><ArrowLeft size={14}/> {<LocalizedText text={"Exit to app"}/>}</Link></div>
+          <button className="theme-toggle" aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"} onClick={toggleTheme}>{theme === "dark" ? <Sun size={19}/> : <Moon size={19}/>}</button>{currency !== "USD" && <span className="admin-whoami" title={translateUI("Change this from your Profile page in the main app")}><Wallet size={14}/> {<LocalizedText text={"Amounts in"}/>} {currency}</span>}<Link href="/dashboard" className="outline-btn small"><ArrowLeft size={14}/> {<LocalizedText text={"Exit to app"}/>}</Link></div>
       </header>
       <main className="admin-content">
         <div className="page-heading"><div><div className="eyebrow">{<LocalizedText text={"ADMIN PANEL"}/>}</div><h1>{active.title}</h1><p>{active.description}</p></div></div>
@@ -733,12 +797,11 @@ function AdminPageInner() {
               <div><label className="input-label">{<LocalizedText text={"Password"}/>}</label><input className="text-input" type="password" placeholder={translateUI("At least 8 characters")} value={createUserForm.password} onChange={e => setCreateUserForm({ ...createUserForm, password: e.target.value })}/></div>
               <div><label className="input-label">{<LocalizedText text={"Starting balance"}/>}</label><input className="text-input" type="number" step="0.01" min="0" value={createUserForm.cashBalance} onChange={e => setCreateUserForm({ ...createUserForm, cashBalance: e.target.value })}/></div>
               <div><label className="input-label">{<LocalizedText text={"Starting profits"}/>}</label><input className="text-input" type="number" step="0.01" min="0" value={createUserForm.profitBalance} onChange={e => setCreateUserForm({ ...createUserForm, profitBalance: e.target.value })}/></div>
-              <FundingCurrency id="create-user-fund-currency" value={createUserForm.currency} onChange={c => setCreateUserForm({ ...createUserForm, currency: c })} amounts={[{ label: "starting balance", value: createUserForm.cashBalance }, { label: "starting profits", value: createUserForm.profitBalance }]} rates={fx?.rates ?? null} status={fx?.status ?? "live"}/>
               <div style={{ gridColumn: "1 / -1", display: "flex", gap: 10, marginTop: 14 }}><button className="primary-btn" disabled={createUserBusy}>{createUserBusy ? translateUI("Creating...") : translateUI("Create user")}</button><button type="button" className="outline-btn" onClick={() => setShowCreateUser(false)}>{<LocalizedText text={"Cancel"}/>}</button></div>
             </form>
           </section>}
           <section className="panel admin-panel">
-            <div className="table-scroll"><table className="data-table"><thead><tr><th>{<LocalizedText text={"User"}/>}</th><th>{<LocalizedText text={"Role"}/>}</th><th>{<LocalizedText text={"Balance"}/>}</th><th>{<LocalizedText text={"Profits"}/>}</th><th>{<LocalizedText text={"Target"}/>}</th><th>{<LocalizedText text={"Status"}/>}</th><th>{<LocalizedText text={"Joined"}/>}</th><th></th></tr></thead><tbody>
+            <div className="table-scroll"><table className="data-table"><thead><tr><th>{<LocalizedText text={"User"}/>}</th><th>{<LocalizedText text={"Role"}/>}</th><th>{<LocalizedText text={"Balance"}/>}</th><th>{<LocalizedText text={"Profits"}/>}</th><th>{<LocalizedText text={"Target"}/>}</th><th>{<LocalizedText text={"Status"}/>}</th><th>Verification</th><th>{<LocalizedText text={"Joined"}/>}</th><th></th></tr></thead><tbody>
               {userRows.map(u => <tr key={u.id} className="clickable-row" onClick={() => openUser(u.id)}>
                 <td><div className="coin-cell"><span className="avatar" style={{ width: 34, height: 34, fontSize: 11 }}>{u.name.split(" ").map(n => n[0]).slice(0, 2).join("")}</span><div><strong>{u.name}</strong><span>{u.email}</span></div></div></td>
                 <td className="capitalize">{u.role}{u.isDemo ? translateUI(" · demo") : ""}</td>
@@ -746,6 +809,7 @@ function AdminPageInner() {
                 <td className="table-strong">{money(Number(u.profitBalance))}</td>
                 <td className="table-strong">{money(Number(u.targetBalance))}</td>
                 <td><span className={`status-pill ${u.accountStatus}`}><span/>{accountStatusLabel(u.accountStatus as AccountStatus)}</span></td>
+                <td>{u.isDemo ? "Demo" : u.emailVerifiedAt ? "Verified / approved" : "Pending approval"}</td>
                 <td className="muted-cell">{new Date(u.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</td>
                 <td><button className="outline-btn small" onClick={e => { e.stopPropagation(); openUser(u.id); }}>{<LocalizedText text={"Manage"}/>}</button></td>
               </tr>)}
@@ -764,6 +828,13 @@ function AdminPageInner() {
               <span className={`status-pill ${userDetail.user.accountStatus}`} style={{ fontSize: 12, padding: "7px 12px" }}><span/>{accountStatusLabel(userDetail.user.accountStatus as AccountStatus)}</span>
             </div>
 
+            <div className="panel admin-panel" style={{ padding: 20, marginBottom: 18 }}>
+              <p>Verification: <strong>{userDetail.user.isDemo ? "Demo account" : userDetail.user.emailVerifiedAt ? "Verified / approved" : "Pending approval"}</strong></p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                {!userDetail.user.isDemo && !userDetail.user.emailVerifiedAt && <button type="button" className="primary-btn" disabled={userActionBusy} onClick={() => void runUserAction("approve")}>Approve without OTP</button>}
+                {userDetail.user.role === "user" && !userDetail.user.isDemo && <button type="button" className="outline-btn" disabled={userActionBusy} onClick={() => void runUserAction("delete")}>Permanently delete user</button>}
+              </div>
+            </div>
             <div className="admin-accounts-layout">
               <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
                 <section className="panel admin-panel">
@@ -778,7 +849,7 @@ function AdminPageInner() {
                   <div className="profile-readonly-row"><span>{<LocalizedText text={"Username"}/>}</span><span>{userDetail.user.username ? `@${userDetail.user.username}` : translateUI("Not set")}</span></div>
                   <div className="profile-readonly-row"><span>{<LocalizedText text={"Phone"}/>}</span><span>{userDetail.user.phone ?? translateUI("Not set")}</span></div>
                   <div className="profile-readonly-row"><span>{<LocalizedText text={"Country"}/>}</span><span>{userDetail.user.country ?? translateUI("Not set")}</span></div>
-                  <div className="profile-readonly-row"><span>{<LocalizedText text={"Display currency"}/>}</span><span>{userDetail.user.currency ?? "USD"}</span></div>
+                  <div className="profile-readonly-row"><span>{<LocalizedText text={"Display currency"}/>}</span><span>{"USD"}</span></div>
                 </section>
 
                 <section className="panel admin-panel">
@@ -803,7 +874,6 @@ function AdminPageInner() {
                   <form className="admin-account-form" onSubmit={saveBalance}>
                     <label className="input-label">{<LocalizedText text={"New capital"}/>}</label>
                     <input className="text-input" type="number" step="0.01" min="0" value={balanceForm.newBalance} onChange={e => setBalanceForm({ ...balanceForm, newBalance: e.target.value })}/>
-                    <FundingCurrency id="balance-currency" value={balanceForm.currency} onChange={c => setBalanceForm({ ...balanceForm, currency: c })} amounts={[{ value: balanceForm.newBalance }]} rates={fx?.rates ?? null} status={fx?.status ?? "live"}/>
                     <label className="input-label">{<LocalizedText text={"Note (optional)"}/>}</label>
                     <input className="text-input" placeholder={translateUI("e.g. Manual correction, bonus credit...")} value={balanceForm.note} onChange={e => setBalanceForm({ ...balanceForm, note: e.target.value })} maxLength={300}/>
                     <button className="primary-btn full-btn" disabled={balanceBusy} style={{ marginTop: 14 }}><Wallet size={15}/> {balanceBusy ? translateUI("Saving...") : translateUI("Update capital")}</button>
@@ -815,7 +885,6 @@ function AdminPageInner() {
                   <form className="admin-account-form" onSubmit={saveProfit}>
                     <label className="input-label">{<LocalizedText text={"New profits"}/>}</label>
                     <input className="text-input" type="number" step="0.01" min="0" value={profitForm.newProfit} onChange={e => setProfitForm({ ...profitForm, newProfit: e.target.value })}/>
-                    <FundingCurrency id="profit-currency" value={profitForm.currency} onChange={c => setProfitForm({ ...profitForm, currency: c })} amounts={[{ value: profitForm.newProfit }]} rates={fx?.rates ?? null} status={fx?.status ?? "live"}/>
                     <label className="input-label">{<LocalizedText text={"Note (optional)"}/>}</label>
                     <input className="text-input" placeholder={translateUI("e.g. Copy trading gains, bonus profit...")} value={profitForm.note} onChange={e => setProfitForm({ ...profitForm, note: e.target.value })} maxLength={300}/>
                     <button className="primary-btn full-btn" disabled={profitBusy} style={{ marginTop: 14 }}><TrendingUp size={15}/> {profitBusy ? translateUI("Saving...") : translateUI("Update profits")}</button>
@@ -823,18 +892,42 @@ function AdminPageInner() {
                 </section>
 
                 <section className="panel admin-panel">
+                  <SectionHeadSimple title="Start a bot plan" subtitle="The allocation is debited from this user's capital. Plans do not expire."/>
+                  <form className="admin-account-form" onSubmit={startBotForUser}>
+                    <p>Available capital: <strong>{money(Number(userDetail.user.cashBalance))}</strong></p>
+                    {botCatalogError && <p role="alert">{botCatalogError}</p>}
+                    <label className="input-label" htmlFor="admin-bot-plan">Bot plan</label>
+                    <div className="select-wrap"><select id="admin-bot-plan" required value={botPlanId} disabled={botBusy} onChange={e => { setBotPlanId(e.target.value); setBotRequestId(null); }}><option value="">Choose a plan</option>{BOT_PLAN_TIERS.filter(tier => activeBotIds.includes(tier.id)).map(tier => <option key={tier.id} value={tier.id}>{tier.name} (${tier.min.toLocaleString()}–${tier.max.toLocaleString()})</option>)}</select></div>
+                    <label className="input-label" htmlFor="admin-bot-amount">Allocation (USD)</label>
+                    <input id="admin-bot-amount" className="text-input" type="number" min="0" step="0.01" required value={botAmount} disabled={botBusy} onChange={e => { setBotAmount(e.target.value); setBotRequestId(null); }}/>
+                    <button className="primary-btn full-btn" disabled={botBusy || !activeBotIds.length} style={{ marginTop: 14 }}>{botBusy ? "Starting…" : "Start plan for user"}</button>
+                  </form>
+                </section>
+
+                <section className="panel admin-panel">
+                  <SectionHeadSimple title="Signal purchase price" subtitle="Set this user's USD price for 100% signal strength. Leave blank to disable purchases."/>
+                  <form className="admin-account-form" onSubmit={saveSignalPrice}>
+                    <label className="input-label" htmlFor="signal-price">Price for 100% (USD)</label>
+                    <input id="signal-price" className="text-input" type="number" min="0.01" max="100000000" step="0.01" value={signalPrice} onChange={e => setSignalPrice(e.target.value)} placeholder="Purchases disabled"/>
+                    <button className="primary-btn full-btn" disabled={signalPriceBusy} style={{ marginTop: 14 }}>{signalPriceBusy ? "Saving…" : "Save signal price"}</button>
+                  </form>
+                </section>
+
+                <section className="panel admin-panel">
                   <SectionHeadSimple title={translateUI("Dashboard gauges")} subtitle="Set the values shown to this user below their balance. These gauges are display controls and do not change account funds."/>
-                  <form className="admin-account-form" onSubmit={saveTarget}>
+
+                  <div className="admin-account-form">
                     <label className="input-label">Target amount · {targetForm.currency}</label>
                     <input className="text-input" type="number" step="0.01" min="0" value={targetForm.newTarget} onChange={e => setTargetForm({ ...targetForm, newTarget: e.target.value })}/>
                     <input className="admin-gauge-slider target-amount-slider" aria-label="Target amount slider" type="range" min="0" max="500000" step="100" value={Math.min(500000, Number(targetForm.newTarget) || 0)} onChange={e => setTargetForm({ ...targetForm, newTarget: e.target.value })}/>
-                    <FundingCurrency id="target-currency" value={targetForm.currency} onChange={c => setTargetForm({ ...targetForm, currency: c })} amounts={[{ value: targetForm.newTarget }]} rates={fx?.rates ?? null} status={fx?.status ?? "live"}/>
+                    <button type="button" className="outline-btn" disabled={targetBusy} onClick={() => saveGauge("target")}>Save target amount</button>
                     <label className="input-label gauge-admin-label">Trade progress <strong>{Number(targetForm.newProgress || 0)}%</strong></label>
                     <input className="admin-gauge-slider" aria-label="Trade progress" type="range" min="0" max="100" step="1" value={Math.max(0, Math.min(100, Number(targetForm.newProgress) || 0))} onChange={e => setTargetForm({ ...targetForm, newProgress: e.target.value })}/>
+                    <button type="button" className="outline-btn" disabled={targetBusy} onClick={() => saveGauge("progress")}>Save trade progress</button>
                     <label className="input-label gauge-admin-label">Signal strength <strong>{Number(targetForm.signalStrength || 0)}%</strong></label>
                     <input className="admin-gauge-slider signal-slider" aria-label="Signal strength" type="range" min="0" max="100" step="1" value={Math.max(0, Math.min(100, Number(targetForm.signalStrength) || 0))} onChange={e => setTargetForm({ ...targetForm, signalStrength: e.target.value })}/>
-                    <button className="primary-btn full-btn" disabled={targetBusy} style={{ marginTop: 14 }}><Target size={15}/> {targetBusy ? translateUI("Saving...") : translateUI("Save gauges")}</button>
-                  </form>
+                    <button type="button" className="outline-btn" disabled={targetBusy} onClick={() => saveGauge("signal")}>Save signal strength</button>
+                  </div>
                 </section>
 
                 <section className="panel admin-panel">
@@ -890,6 +983,14 @@ function AdminPageInner() {
             </div>
           </>}
         </>}
+
+        {tab === "signal-requests" && <section className="panel admin-panel">
+          <div className="section-head"><div><h2>Signal purchase requests</h2><p>The quoted cost is charged only on approval. Prices are locked at request time; capital is not reserved.</p></div><button className="outline-btn small" onClick={() => void loadSignalRequests()} disabled={signalRequestsLoading}>Refresh</button></div>
+          <div className="table-scroll"><table className="data-table"><thead><tr><th>User</th><th>Requested</th><th>Current strength</th><th>Quoted cost</th><th>Current capital</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead><tbody>{signalRequests.map(item => <tr key={item.id}>
+            <td><strong>{item.userName}</strong><br/>{item.userEmail}</td><td>+{item.percent}%</td><td>{Number(item.currentSignal).toFixed(2)}%</td><td>{money(Number(item.cost))}</td><td>{money(Number(item.capital))}</td><td>{new Date(item.createdAt).toLocaleString()}</td><td className="capitalize">{item.status}</td><td>{item.status === "pending" && <div style={{ display: "flex", gap: 6 }}><button className="primary-btn small" disabled={!!signalReviewBusy} onClick={() => void reviewSignalRequest(item, "approve")}>Approve</button><button className="outline-btn small" disabled={!!signalReviewBusy} onClick={() => void reviewSignalRequest(item, "reject")}>Reject</button></div>}</td>
+          </tr>)}</tbody></table></div>
+          {!signalRequestsLoading && signalRequests.length === 0 && <div className="empty-state"><p>No signal requests yet.</p></div>}
+        </section>}
 
         {tab === "deposits" && <section className="panel admin-panel">
           <div className="section-head">
@@ -948,7 +1049,7 @@ function AdminPageInner() {
               <div className="admin-request-meta">
                 <div><span>{<LocalizedText text={"User"}/>}</span><strong>{r.userName}</strong><small>{r.userEmail}</small></div>
                 <div><span>{<LocalizedText text={"Submitted"}/>}</span><strong>{new Date(r.createdAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</strong></div>
-                <div><span>{<LocalizedText text={"Send payout to"}/>}</span><strong>{r.destination}</strong></div>
+                <div><span>{<LocalizedText text={"Send payout to"}/>}</span><strong style={{ whiteSpace: "pre-line", overflowWrap: "anywhere" }}>{r.destination}</strong></div>
               </div>
               {r.note && <p className="admin-request-note"><strong>{<LocalizedText text={"User note:"}/>}</strong> {r.note}</p>}
               {r.adminNote && <p className="admin-request-note admin-note-flag"><AlertTriangle size={13}/> {r.adminNote}</p>}

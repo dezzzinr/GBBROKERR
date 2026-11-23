@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { users, withdrawalRequests } from "@/db/schema";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { getUser } from "@/lib/auth";
 import { blockedActionMessage } from "@/lib/accounts";
-import { WITHDRAWAL_METHOD_IDS } from "@/lib/withdrawals";
+import { WITHDRAWAL_METHOD_IDS, formatWithdrawalDestination, type WithdrawalMethod } from "@/lib/withdrawals";
 import { notifyUser } from "@/lib/notify";
 import { moneyFormatterFor, convertToUsd, USD_ADVICE_USER } from "@/lib/fx-server";
 
@@ -16,6 +16,12 @@ export async function GET(request: NextRequest) {
   try {
     const user = await getUser(request);
     if (!user) return bad("Session expired. Please refresh the page.", 401);
+    const requestId = request.nextUrl.searchParams.get("requestId");
+    if (requestId) {
+      if (!/^[0-9a-f-]{36}$/i.test(requestId)) return bad("Invalid request ID.");
+      const [found] = await db.select({ id: withdrawalRequests.id, status: withdrawalRequests.status }).from(withdrawalRequests).where(and(eq(withdrawalRequests.id, requestId), eq(withdrawalRequests.userId, user.id))).limit(1);
+      return NextResponse.json({ found: !!found, request: found ?? null });
+    }
     const rows = await db
       .select()
       .from(withdrawalRequests)
@@ -37,9 +43,7 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getUser(request);
     if (!user) return bad("Session expired. Please refresh the page.", 401);
-    const blocked = blockedActionMessage(user, "withdraw");
-    if (blocked) return bad(blocked, 403);
-    if (Number(user.profitBalance) > 0) return bad("Move all profits to Capital before requesting a withdrawal.");
+
     // Formats every amount in this request's messages in the user's own
     // display currency (chosen on their profile). Ledger math stays USD.
     const fmt = await moneyFormatterFor(user.currency);
@@ -55,7 +59,11 @@ export async function POST(request: NextRequest) {
     // here on the server (never trusting a client-computed figure). Bounds and
     // the balance check apply to the converted USD value, since that's what the
     // wallet actually holds.
-    const entered = Number(body.amount);
+    const requestId = String(body.requestId ?? "");
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)) return bad("Refresh the page and try again.");
+    const amountText = String(body.amount ?? "");
+    if (!/^\d+(\.\d{1,2})?$/.test(amountText)) return bad("Enter a USD amount with up to two decimal places.");
+    const entered = Number(amountText);
     if (!Number.isFinite(entered) || entered <= 0) return bad(`Enter a valid amount of at least ${fmt.usd(1)}.`);
     const conversion = await convertToUsd(entered, body.currency, USD_ADVICE_USER);
     if (!conversion.ok) return bad(conversion.error);
@@ -63,33 +71,35 @@ export async function POST(request: NextRequest) {
     if (amount < 1) return bad(`Enter a valid amount of at least ${fmt.usd(1)}.`);
     if (amount > 10000000) return bad("Enter a smaller amount.");
 
-    const destination = String(body.destination ?? "").trim().slice(0, 500);
-    if (destination.length < 3) return bad("Tell us where to send your payout (wallet address, account details, email, etc.).");
-
+    const parsed = formatWithdrawalDestination(method as WithdrawalMethod, body.details);
+    if (parsed.destination === undefined) return bad(parsed.error);
+    const destination = parsed.destination;
     const note = body.note ? String(body.note).trim().slice(0, 1000) || null : null;
 
-    const id = await db.transaction(async (tx) => {
+    const outcome = await db.transaction(async (tx) => {
       const [wallet] = await tx.select().from(users).where(eq(users.id, user.id)).for("update");
+      if (!wallet) throw new Error("Account not found.");
+      const [existing] = await tx.select().from(withdrawalRequests).where(eq(withdrawalRequests.id, requestId)).limit(1);
+      if (existing) {
+        if (existing.userId !== user.id || existing.method !== method || existing.methodLabel !== methodLabel || existing.amount !== amount.toFixed(2) || existing.destination !== destination || existing.note !== note) throw new Error("This request ID was already used for different withdrawal details. Check your request history.");
+        return { id: existing.id, created: false };
+      }
+      const blocked = blockedActionMessage(wallet, "withdraw");
+      if (blocked) throw new Error(blocked);
       if (Number(wallet.profitBalance) > 0) throw new Error("Move all profits to Capital before requesting a withdrawal.");
       if (Number(wallet.cashBalance) < amount) throw new Error("Insufficient available balance.");
       await tx.update(users).set({ cashBalance: sql`${users.cashBalance} - ${amount}` }).where(eq(users.id, user.id));
-      const [row] = await tx
-        .insert(withdrawalRequests)
-        .values({ userId: user.id, method, methodLabel, amount: amount.toFixed(2), destination, note, status: "pending" })
-        .returning({ id: withdrawalRequests.id });
-      return row.id;
+      const [row] = await tx.insert(withdrawalRequests).values({ id: requestId, userId: user.id, method, methodLabel, amount: amount.toFixed(2), destination, note, status: "pending" }).returning({ id: withdrawalRequests.id });
+      return { id: row.id, created: true };
     });
-
-    await notifyUser({
-      userId: user.id,
-      type: "withdrawal_submitted",
-      title: "Withdrawal request submitted",
-      message: `Your ${fmt.money(amount)} withdrawal request via ${method} was submitted and is awaiting admin review. The amount has been reserved from your available balance.`,
-    });
-
-    return NextResponse.json({ success: true, id, message: "Withdrawal request submitted for review. The amount has been reserved from your available balance." });
+    if (outcome.created) try {
+      await notifyUser({ userId: user.id, type: "withdrawal_submitted", title: "Withdrawal request submitted", message: `Your ${fmt.money(amount)} withdrawal request via ${method} was submitted and is awaiting admin review. The amount has been reserved from your available balance.` });
+    } catch (error) { console.error("Withdrawal notification:", error); }
+    return NextResponse.json({ success: true, id: outcome.id, alreadyProcessed: !outcome.created, message: outcome.created ? "Withdrawal submitted. Funds are reserved pending review." : "This withdrawal request was already submitted." });
   } catch (error) {
     console.error("Withdrawals POST:", error);
-    return bad(error instanceof Error ? error.message : "Unable to submit your withdrawal request. Please try again.", 400);
+    const message = error instanceof Error ? error.message : "";
+    if (["Account not found.", "Move all profits to Capital before requesting a withdrawal.", "Insufficient available balance.", "This request ID was already used for different withdrawal details. Check your request history."].includes(message) || message.startsWith("Verify your email") || message.startsWith("Your account is suspended") || message.startsWith("Withdrawals are currently disabled") || message.startsWith("Create a free account")) return bad(message);
+    return bad("Withdrawal status is uncertain. Retry without changing your details, or check your request history.", 500);
   }
 }

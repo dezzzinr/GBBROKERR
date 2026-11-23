@@ -45,9 +45,9 @@ export async function getFxSnapshot(): Promise<FxSnapshot> {
 
 // Convenience helper for server routes that only need one currency's rate.
 export async function getFxRate(currency: string): Promise<{ rate: number; status: FxSnapshot["status"]; updatedAt: string | null }> {
-  const snapshot = await getFxSnapshot();
   const code = (currency || "USD").toUpperCase();
-  if (code === "USD") return { rate: 1, status: snapshot.status, updatedAt: snapshot.updatedAt };
+  if (code === "USD") return { rate: 1, status: "live", updatedAt: null };
+  const snapshot = await getFxSnapshot();
   const rate = snapshot.rates[code];
   if (typeof rate !== "number" || !Number.isFinite(rate) || rate <= 0) {
     // Currency not covered by the provider (e.g. KPW) - fall back to USD
@@ -120,7 +120,9 @@ function buildFormatter(code: string, rate: number): MoneyFormatter {
 // briefly so a background sweep touching many users doesn't refetch the
 // snapshot on every notification.
 export async function moneyFormatterFor(currency: string | null | undefined): Promise<MoneyFormatter> {
-  const code = (currency || "USD").toUpperCase();
+  // All account-facing amounts are displayed in USD, regardless of legacy preferences.
+  void currency;
+  const code = "USD";
   const cached = formatterCache.get(code);
   if (cached && Date.now() - cached.at < FORMATTER_TTL_MS) return cached.formatter;
 
@@ -180,17 +182,8 @@ export async function convertToUsd(
   const code = (currency || "USD").trim().toUpperCase();
   if (!Number.isFinite(amount) || amount < 0) return { ok: false, error: "Enter a valid amount." };
   if (code === "USD") return { ok: true, usd: round2(amount), rate: 1, currency: "USD", status: "live" };
-  if (!/^[A-Z]{3}$/.test(code)) return { ok: false, error: "Choose a valid currency." };
-
-  const snapshot = await getFxSnapshot();
-  if (snapshot.status === "unavailable") {
-    return { ok: false, error: `Live exchange rates are unavailable right now, so ${code} amounts can't be converted safely. ${advice}` };
-  }
-  const rate = snapshot.rates[code];
-  if (typeof rate !== "number" || !Number.isFinite(rate) || rate <= 0) {
-    return { ok: false, error: `No exchange rate is available for ${code}. ${advice}` };
-  }
-  return { ok: true, usd: round2(amount / rate), rate, currency: code, status: snapshot.status };
+  void advice;
+  return { ok: false, error: "Only USD amounts are accepted. Please refresh the page and enter the amount in USD." };
 }
 
 // "1 USD = ₦1,331.2756" - the rate disclosure shown alongside a conversion so

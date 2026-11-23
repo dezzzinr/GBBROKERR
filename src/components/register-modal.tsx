@@ -1,16 +1,19 @@
 "use client";
+import DdcmMark from "@/components/ddcm-mark";
 
 import { LocalizedText, useLanguage } from "@/components/i18n-provider";
 import { useEffect, useState } from "react";
-import { ArrowRight, LockKeyhole, UserRound, X } from "lucide-react";
-import { COUNTRIES, currencyForCountry } from "@/lib/countries";
+import { ArrowRight, LockKeyhole, X } from "lucide-react";
+import AuthShowcase from "@/components/auth-showcase";
+import { COUNTRIES } from "@/lib/countries";
 type Props = {
   onClose: () => void;
   onSwitchToLogin: () => void;
   onRegistered: () => void | Promise<void>;
+  standalone?: boolean;
 };
 
-export default function RegisterModal({ onClose, onSwitchToLogin, onRegistered }: Props) {
+export default function RegisterModal({ onClose, onSwitchToLogin, onRegistered, standalone = false }: Props) {
   const { t: translateUI } = useLanguage();
   const { t } = useLanguage();
   const [submitting, setSubmitting] = useState(false);
@@ -84,12 +87,15 @@ export default function RegisterModal({ onClose, onSwitchToLogin, onRegistered }
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="register-modal">
-        <button className="modal-close" onClick={onClose} aria-label={translateUI("Close")}><X size={20} /></button>
-        <div className="modal-brand"><div className="brand-icon"><UserRound size={20} strokeWidth={3} /></div>{t("Create your account")}</div>
-        <h2>{t("Join Tetratrades")}</h2>
-        <p>{t("Your trading journey starts here. Just the basics for now — you can add your photo, username, date of birth, and more anytime from your Profile page.")}</p>
+    <div className={standalone ? "ddcm-auth-page" : "modal-overlay"} onMouseDown={(e) => { if (!standalone && e.target === e.currentTarget) onClose(); }}>
+      <div className={standalone ? "ddcm-auth-shell ddcm-signup-shell" : "register-modal-shell"}>
+      {standalone && <AuthShowcase mode="sign-up"/>}
+      <div className={standalone ? "register-modal ddcm-register" : "register-modal"}>
+        {!standalone && <button className="modal-close" onClick={onClose} aria-label={translateUI("Close")}><X size={20} /></button>}
+        {standalone ? <div className="ddcm-auth-mobile-brand">DDCM <span>DENARY DRILL CAPITAL MARKETS</span></div> : <div className="modal-brand"><div className="brand-icon"><DdcmMark size={22}/></div><span className="ddcm-wordmark">DDCM</span></div>}
+        {standalone && <span className="ddcm-auth-kicker">YOUR ACCOUNT</span>}
+        <h2>{standalone ? "Create your account" : t("Join Denary Drill Capital Markets")}</h2>
+        <p>{standalone ? "Enter your details to get started with DDCM." : t("Your trading journey starts here. Just the basics for now — you can add your photo, username, date of birth, and more anytime from your Profile page.")}</p>
 
         <form onSubmit={submit}>
           <div className="form-section">
@@ -100,7 +106,6 @@ export default function RegisterModal({ onClose, onSwitchToLogin, onRegistered }
               <div className="form-field">
                 <label className="input-label">{t("Country")} {<LocalizedText text={"*"}/>}</label>
                 <div className="select-wrap"><select value={country} onChange={(e) => setCountry(e.target.value)} required><option value="">{t("Select your country")}</option>{COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}</select></div>
-                {selectedCountry && <p className="form-hint">{t("Your balances will display in")} {currencyForCountry(selectedCountry.code)} {t("by default — you can change this later in your profile.")}</p>}
               </div>
               <div className="form-field"><label className="input-label">{t("Password")} {<LocalizedText text={"*"}/>}</label><input className="text-input" type="password" placeholder={translateUI("At least 8 characters")} value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} /></div>
               <div className="form-field"><label className="input-label">{t("Confirm Password")} {<LocalizedText text={"*"}/>}</label><input className="text-input" type="password" placeholder={translateUI("Re-enter your password")} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={8} /></div>
@@ -117,6 +122,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin, onRegistered }
         </form>
         <div className="modal-switch">{t("Already have an account?")} <button onClick={onSwitchToLogin}>{t("Sign in")}</button></div>
         <div className="modal-security"><LockKeyhole size={14} /> {t("Your account is secured with encrypted credentials")}</div>
+      </div>
       </div>
     </div>
   );

@@ -25,11 +25,11 @@ export type NotificationType =
   | "deposit_submitted" | "deposit_approved" | "deposit_rejected"
   | "deposit_destination_added" | "deposit_destination_edited" | "deposit_destination_deleted"
   | "withdrawal_submitted" | "withdrawal_approved" | "withdrawal_rejected"
-  | "bot_subscribed" | "bot_cancelled"
+  | "bot_subscribed" | "bot_cancelled" | "signal_purchase" | "signal_request_submitted" | "signal_request_approved" | "signal_request_rejected"
   | "copy_subscribed" | "copy_cancelled"
   | "plan_subscribed" | "plan_cancelled"
   | "admin_credit" | "admin_debit" | "profit_credit" | "profit_debit" | "profit_to_capital" | "account_status_changed"
-  | "admin_message" | "referral_bonus" | "price_alert_triggered" | "target_balance_updated";
+  | "admin_message" | "referral_bonus" | "price_alert_triggered" | "target_balance_updated" | "trade_progress_updated" | "signal_strength_updated";
 
 // Event types that are purely a self-initiated action the user just saw
 // confirmed on screen (e.g. they clicked "Cancel order" and the row

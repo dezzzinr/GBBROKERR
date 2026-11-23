@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { users, holdings, trades, transactions, notifications, depositRequests, withdrawalRequests } from "@/db/schema";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth";
 import { ACCOUNT_STATUSES } from "@/lib/accounts";
 import { notifyUser } from "@/lib/notify";
@@ -20,12 +20,14 @@ const PUBLIC_COLUMNS = {
   targetBalance: users.targetBalance,
   targetProgressPercent: users.targetProgressPercent,
   signalStrength: users.signalStrength,
+  signalPrice100: users.signalPrice100,
   accountStatus: users.accountStatus,
   maxTradeAmount: users.maxTradeAmount,
   withdrawalsBlocked: users.withdrawalsBlocked,
   statusReason: users.statusReason,
   statusUpdatedAt: users.statusUpdatedAt,
   createdAt: users.createdAt,
+  emailVerifiedAt: users.emailVerifiedAt,
   // Read-only profile fields added by the registration overhaul - admins can
   // view these but editing them is left to the user's own profile page.
   username: users.username,
@@ -146,5 +148,40 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   } catch (error) {
     console.error("Admin update user:", error);
     return bad("Unable to update this user.", 500);
+  }
+}
+
+// Manual approval bypasses the OTP; this does not prove email ownership.
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const admin = await requireAdmin(request);
+    if (!admin) return bad("Admin access required.", 403);
+    const { id } = await params;
+    const body = await request.json().catch(() => ({}));
+    if (body.action !== "approve") return bad("Invalid action.");
+    const [row] = await db.update(users).set({ emailVerifiedAt: new Date(), verificationCodeHash: null, verificationCodeExpiresAt: null, verificationCodeSentAt: null, verificationAttempts: 0 })
+      .where(and(eq(users.id, id), eq(users.isDemo, false), isNull(users.emailVerifiedAt), sql`${users.email} is not null`)).returning(PUBLIC_COLUMNS);
+    if (!row) return bad("User not found or not awaiting approval.", 409);
+    return NextResponse.json({ success: true, user: row });
+  } catch (error) {
+    console.error("Admin approve user:", error);
+    return bad("Unable to approve this user.", 500);
+  }
+}
+
+// Permanently remove regular users and their dependent records via database cascades.
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const admin = await requireAdmin(request);
+    if (!admin) return bad("Admin access required.", 403);
+    const { id } = await params;
+    if (id === admin.id) return bad("You cannot delete your own account.");
+    const [row] = await db.delete(users)
+      .where(and(eq(users.id, id), eq(users.role, "user"), eq(users.isDemo, false))).returning({ id: users.id });
+    if (!row) return bad("User not found or cannot be deleted.", 404);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Admin delete user:", error);
+    return bad("Unable to delete this user.", 500);
   }
 }

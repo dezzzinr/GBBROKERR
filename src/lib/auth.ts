@@ -30,7 +30,7 @@ export function isAdminEmail(email: string) {
 }
 export async function requireAdmin(request: NextRequest) {
   const user = await getUser(request);
-  if (!user || user.role !== "admin") return null;
+  if (!user || user.role !== "admin" || user.accountStatus === "locked") return null;
   return user;
 }
 export async function setSession(response: NextResponse, userId: string) {

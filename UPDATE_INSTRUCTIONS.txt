@@ -1,0 +1,13 @@
+DDCM EXPANDED LANDING PAGE UPDATE
+
+This cumulative update supersedes prior ZIPs. Back up/commit your project and database, stop the dev server, then extract into the project root with paths preserved. Included files will replace local edits. Run npm install if needed.
+
+Landing page now includes About, Why DDCM, Features, interactive trading bot plan explorer, How it works, Testimonials, FAQ accordions and Contact, plus generated artwork, animations, mobile styles and reduced-motion support. Plan ranges and names come from the existing bot constants; actual active availability and terms are displayed after sign-in. The chart is illustrative, not live data.
+
+No testimonials were invented: the testimonial section is a placeholder. Replace it with genuine testimonials only after obtaining permission. Set SUPPORT_EMAIL to your real public support address in Vercel or .env.local. Set NEXT_PUBLIC_SMARTSUPP_KEY to enable the chat option; configure chat in Smartsupp. If neither is configured, the page says contact details are being set up. Redeploy after configuring environment variables.
+
+The landing page is at / and the dashboard at /dashboard. Links with ?ref= retain the referral code when proceeding to sign-up.
+
+PASSWORD RESET: Configure APP_URL, RESEND_API_KEY and EMAIL_FROM with a verified sender. DATABASE MIGRATIONS: back up/check DATABASE_URL then run node scripts/migrate-password-reset.mjs on each intended database; if necessary run node scripts/migrate-signal-purchase.mjs, and apply migrations/20261120_dashboard_gauges.sql. Apply to production before deploying.
+
+A production build completed. Live database, email delivery and real support channels were not end-to-end tested. Existing unrelated test-file TypeScript errors remain.

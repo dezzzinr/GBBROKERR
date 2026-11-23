@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       db.select({ count: sql<number>`count(*)::int` }).from(notifications).where(and(eq(notifications.userId, user.id), isNull(notifications.readAt))),
       // Display-only FX rate for this user's chosen currency; the ledger
       // below (cashBalance, trades, transactions) always stays in USD.
-      getFxRate(user.currency ?? "USD"),
+      getFxRate("USD"),
     ]);
     let plan = currentPlan[0];
     if (!plan) {
@@ -73,12 +73,13 @@ export async function GET(request: NextRequest) {
         targetBalance: Number(user.targetBalance),
         targetProgressPercent: Number(user.targetProgressPercent),
         signalStrength: Number(user.signalStrength),
+        signalPrice100: user.signalPrice100 === null ? null : Number(user.signalPrice100),
         accountStatus: user.accountStatus,
         maxTradeAmount: user.maxTradeAmount == null ? null : Number(user.maxTradeAmount),
         withdrawalsBlocked: user.withdrawalsBlocked,
         statusReason: user.statusReason,
         profilePhoto: user.profilePhoto,
-        currency: user.currency ?? "USD",
+        currency: "USD",
         language: user.language ?? "en",
       },
       holdings: h,
@@ -90,7 +91,7 @@ export async function GET(request: NextRequest) {
       planAmount: plan ? Number(plan.amount) : null,
       notifications: notifRows,
       unreadNotifications: unreadCount[0]?.count ?? 0,
-      fx: { currency: user.currency ?? "USD", rate: fx.rate, status: fx.status, updatedAt: fx.updatedAt },
+      fx: { currency: "USD", rate: fx.rate, status: fx.status, updatedAt: fx.updatedAt },
     });
     return response;
   } catch (error) { console.error("App GET:", error); return bad("Unable to load your workspace. Please try again.", 500); }

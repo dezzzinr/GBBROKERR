@@ -1,66 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { users } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth";
 import { notifyUser } from "@/lib/notify";
-import { moneyFormatterFor, convertToUsd, convertedAmountLabel } from "@/lib/fx-server";
 
 export const dynamic = "force-dynamic";
-const bad = (message: string, status = 400) => NextResponse.json({ error: message }, { status });
+const bad = (error: string, status = 400) => NextResponse.json({ error }, { status });
 
-// Directly sets a user's "Target" - a purely informational goal amount and
-// progress percentage shown as a banner above their balance on the
-// dashboard. Both the target amount AND the progress bar fill are
-// independently admin-set; progress is never derived from the user's actual
-// balance/holdings. Unlike cash/profit balance edits, this never moves real
-// (paper) money, so there's no transaction/ledger entry - just the stored
-// values and a notification.
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const admin = await requireAdmin(request);
-    if (!admin) return bad("Admin access required.", 403);
+    if (!(await requireAdmin(request))) return bad("Admin access required.", 403);
     const { id } = await params;
     const body = await request.json().catch(() => ({}));
-    const entered = Number(body.newTarget);
-    if (!Number.isFinite(entered) || entered < 0) return bad("Enter a valid target amount.");
-    const newProgress = Number(body.newProgress ?? 0);
-    if (!Number.isFinite(newProgress) || newProgress < 0 || newProgress > 100) return bad("Enter a valid progress percentage (0-100).");
-    const signalStrength = Number(body.signalStrength ?? 0);
-    if (!Number.isFinite(signalStrength) || signalStrength < 0 || signalStrength > 100) return bad("Signal strength must be between 0 and 100.");
-
-    // The Target is stored in USD like everything else in the ledger, so an
-    // amount entered in another currency is converted here on the server.
-    const conversion = await convertToUsd(entered, body.currency);
-    if (!conversion.ok) return bad(conversion.error);
-    const newTarget = conversion.usd;
-    if (newTarget > 100000000) return bad("Enter a valid target amount.");
-
-    const [row] = await db.update(users).set({ targetBalance: newTarget.toFixed(2), targetProgressPercent: newProgress.toFixed(2), signalStrength: signalStrength.toFixed(2) }).where(eq(users.id, id)).returning({ id: users.id, targetBalance: users.targetBalance, targetProgressPercent: users.targetProgressPercent, signalStrength: users.signalStrength, currency: users.currency });
-    if (!row) return bad("User not found.", 404);
-
-    // The notification is rendered in the affected user's display currency; the
-    // stored value stays USD either way.
-    const userFmt = await moneyFormatterFor(row.currency);
-
-    await notifyUser({
-      userId: id,
-      type: "target_balance_updated",
-      title: "Your Target was updated",
-      message: `An admin updated your dashboard gauges: target ${userFmt.money(newTarget)}, trade progress ${newProgress.toFixed(0)}%, and signal strength ${signalStrength.toFixed(0)}%.`,
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: `Target updated to ${convertedAmountLabel(conversion, entered)} at ${newProgress.toFixed(0)}% progress.`,
-      targetBalance: row.targetBalance,
-      targetProgressPercent: row.targetProgressPercent,
-      signalStrength: row.signalStrength,
-      usd: newTarget,
-      entered: { amount: entered, currency: conversion.currency, rate: conversion.rate, status: conversion.status },
-    });
-  } catch (error) {
-    console.error("Admin target edit:", error);
-    return bad(error instanceof Error ? error.message : "Unable to update target.", 400);
-  }
+    const gauge = body.gauge;
+    if (!["target", "progress", "signal"].includes(gauge)) return bad("Select one gauge to update.");
+    if (body.value === "" || body.value == null || !Number.isFinite(Number(body.value))) return bad("Enter a valid value.");
+    const value = Number(body.value);
+    if (value < 0 || value > (gauge === "target" ? 100000000 : 100)) return bad(gauge === "target" ? "Enter a valid target amount." : "Enter a percentage between 0 and 100.");
+    if (gauge === "target" && body.currency !== "USD") return bad("Only USD is supported.");
+    const expected = String(body.expected ?? "");
+    if (!/^\d+(\.\d{1,2})?$/.test(expected)) return bad("Reload this user before saving.", 409);
+    const column = gauge === "target" ? users.targetBalance : gauge === "progress" ? users.targetProgressPercent : users.signalStrength;
+    const update = gauge === "target" ? { targetBalance: value.toFixed(2) } : gauge === "progress" ? { targetProgressPercent: value.toFixed(2) } : { signalStrength: value.toFixed(2) };
+    const [row] = await db.update(users).set(update).where(and(eq(users.id, id), eq(column, expected))).returning({ id: users.id });
+    if (!row) return bad("This gauge changed or the user was not found. Reload and try again.", 409);
+    const name = gauge === "target" ? "Target amount" : gauge === "progress" ? "Trade progress" : "Signal strength";
+    const display = gauge === "target" ? `$${value.toFixed(2)} USD` : `${value.toFixed(2)}%`;
+    // The change is committed already: notification problems must not falsely report a failed save.
+    try { await notifyUser({ userId: id, type: gauge === "target" ? "target_balance_updated" : gauge === "progress" ? "trade_progress_updated" : "signal_strength_updated", title: `${name} updated`, message: `An admin updated your ${name.toLowerCase()} to ${display}.` }); }
+    catch (err) { console.error("Gauge notification failed:", err); }
+    return NextResponse.json({ success: true, message: `${name} updated to ${display}.` });
+  } catch (error) { console.error("Admin gauge edit:", error); return bad("Unable to update gauge.", 500); }
 }

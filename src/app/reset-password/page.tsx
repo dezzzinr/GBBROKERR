@@ -1,79 +1,50 @@
 "use client";
-
-import { LocalizedText, useLanguage } from "@/components/i18n-provider";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, Check, KeyRound, LockKeyhole } from "lucide-react";
-import { ConfirmProvider, useConfirm } from "@/components/confirm-provider";
-import { ThemeProvider } from "@/components/theme-provider";
+import { ArrowRight, Check, Eye, EyeOff, LockKeyhole } from "lucide-react";
+import AuthShowcase from "@/components/auth-showcase";
 
 function ResetPasswordForm() {
-  const { t: translateUI } = useLanguage();
-  const { t } = useLanguage();
   const params = useSearchParams();
-  const confirm = useConfirm();
-  const token = params.get("token") ?? "";
+  const [token] = useState(() => params.get("token") ?? "");
+  const [showPassword, setShowPassword] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+  useEffect(() => { if (token) window.history.replaceState(window.history.state, "", "/reset-password"); }, [token]);
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    if (!token) return setError("This reset link is missing its token. Request a new one from the sign-in page.");
-    if (newPassword.length < 8) return setError("New password must be at least 8 characters.");
+  async function submit(e: React.FormEvent) {
+    e.preventDefault(); setError("");
+    if (!token) return setError("This link is missing its token. Request a new link.");
+    if (newPassword.length < 8 || newPassword.length > 256) return setError("Use between 8 and 256 characters.");
     if (newPassword !== confirmPassword) return setError("Passwords do not match.");
-    if (!(await confirm({ title: "Reset your password?", message: "You'll need this new password the next time you sign in." }))) return;
     setSubmitting(true);
     try {
       const res = await fetch("/api/auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "resetPasswordWithToken", token, newPassword }) });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || "This reset link is invalid or has expired.");
-      setDone(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="auth-modal" style={{ margin: "0 auto" }}>
-      <div className="modal-brand"><div className="brand-icon"><KeyRound size={20} strokeWidth={3} /></div>{<LocalizedText text={"Tetra"}/>}<span>{<LocalizedText text={"Trades"}/>}</span></div>
-      {!done ? <>
-        <h2>{<LocalizedText text={"Reset your password"}/>}</h2>
-        <p>{token ? translateUI("Choose a new password for your account.") : translateUI("This link is missing its reset token. Make sure you opened the full link from your email, or request a new one from the sign-in page.")}</p>
-        <form onSubmit={submit}>
-          <label className="input-label">{<LocalizedText text={"New password"}/>}</label>
-          <input className="text-input" type="password" placeholder={translateUI("At least 8 characters")} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={8} />
-          <label className="input-label">{<LocalizedText text={"Confirm new password"}/>}</label>
-          <input className="text-input" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={8} />
-          {error && <p className="form-error-text">{error}</p>}
-          <button className="primary-btn full-btn" disabled={submitting}>{submitting ? translateUI("Resetting...") : translateUI("Reset password")}<ArrowRight size={17} /></button>
-        </form>
-      </> : <>
-        <h2>{<LocalizedText text={"Password updated"}/>}</h2>
-        <p>{<LocalizedText text={"Your password has been reset. You can now close this tab and sign in with your new password."}/>}</p>
-        <Link className="primary-btn full-btn" href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Check size={17} /> {<LocalizedText text={"Go to Tetratrades"}/>}</Link>
-      </>}
-      <div className="modal-security"><LockKeyhole size={14} /> {<LocalizedText text={"Your account is secured with encrypted credentials"}/>}</div>
-    </div>
-  );
+      setNewPassword(""); setConfirmPassword(""); setDone(true);
+    } catch (err) { setError(err instanceof Error ? err.message : "Something went wrong. Please try again."); }
+    finally { setSubmitting(false); }
+  }
+  return <main className="ddcm-auth-page"><div className="ddcm-auth-shell"><AuthShowcase mode="reset"/>
+    <section className="ddcm-auth-content" aria-labelledby="reset-title"><div className="ddcm-auth-form-wrap">
+      <div className="ddcm-auth-heading"><span className="ddcm-auth-kicker">ACCOUNT SECURITY</span><h2 id="reset-title">{done ? "Password updated" : "Reset your password"}</h2><p>{done ? "Your password has been changed. Sign in using your new password." : token ? "Choose a strong new password to secure your account." : "This link is missing its token. Request a new link from the sign-in page."}</p></div>
+      {!done && token && <form onSubmit={submit}>
+        <label className="input-label" htmlFor="reset-new-password">New password</label>
+        <div className="ddcm-password"><input id="reset-new-password" className="text-input" type={showPassword ? "text" : "password"} autoComplete="new-password" placeholder="At least 8 characters" value={newPassword} onChange={e => setNewPassword(e.target.value)} required minLength={8} maxLength={256}/><button type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword(v => !v)}>{showPassword ? <EyeOff size={16}/> : <Eye size={16}/>}</button></div>
+        <label className="input-label" htmlFor="reset-confirm-password">Confirm new password</label>
+        <input id="reset-confirm-password" className="text-input" type="password" autoComplete="new-password" placeholder="Re-enter your password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required minLength={8} maxLength={256}/>
+        <p className="ddcm-password-hint">Use at least 8 characters. Your existing sessions will be signed out.</p>
+        {error && <p className="form-error-text" role="alert">{error}</p>}
+        <button className="primary-btn full-btn ddcm-auth-submit" disabled={submitting}>{submitting ? "Updating…" : "Update password"}<ArrowRight size={16}/></button>
+      </form>}
+      {(done || !token) && <Link className="primary-btn full-btn ddcm-auth-submit ddcm-auth-link" href="/sign-in">{done ? <><Check size={16}/> Go to sign in</> : <>Back to sign in <ArrowRight size={16}/></>}</Link>}
+      {!done && token && <div className="ddcm-auth-switch"><Link href="/sign-in">Back to sign in</Link> · Need a new link? Select “Forgot password” on sign in.</div>}
+      <div className="ddcm-auth-security"><LockKeyhole size={14}/> Your credentials are protected</div>
+    </div></section></div></main>;
 }
-
-export default function ResetPasswordPage() {
-  return (
-    <ThemeProvider>
-      <ConfirmProvider>
-        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)", padding: "24px 16px" }}>
-          <Suspense fallback={null}>
-            <ResetPasswordForm />
-          </Suspense>
-        </div>
-      </ConfirmProvider>
-    </ThemeProvider>
-  );
-}
+export default function ResetPasswordPage() { return <Suspense fallback={null}><ResetPasswordForm/></Suspense>; }

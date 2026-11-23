@@ -36,7 +36,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           userId: row.userId,
           type: "withdrawal",
           amount: row.amount,
-          description: `${withdrawalMethodLabel(row.method, row.methodLabel)} withdrawal approved · Sent to ${row.destination}`,
+          description: `${withdrawalMethodLabel(row.method, row.methodLabel)} withdrawal approved`,
         });
       } else {
         // Refund the held amount back to the user's available balance.

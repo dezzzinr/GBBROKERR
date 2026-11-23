@@ -34,7 +34,7 @@ function publicProfile(user: typeof users.$inferSelect) {
     securityQuestion: user.securityQuestion,
     termsAcceptedAt: user.termsAcceptedAt,
     privacyAcceptedAt: user.privacyAcceptedAt,
-    currency: user.currency,
+    currency: "USD",
     language: user.language,
     emailNotifications: user.emailNotifications,
     createdAt: user.createdAt,
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       user = updated;
     }
     const [fx, referralCountRow] = await Promise.all([
-      getFxRate(user.currency),
+      getFxRate("USD"),
       db.select({ count: sql<number>`count(*)::int` }).from(users).where(eq(users.referredBy, user.id)),
     ]);
     return NextResponse.json({ profile: publicProfile(user), fx, referralCount: referralCountRow[0]?.count ?? 0 });
@@ -123,7 +123,7 @@ export async function PATCH(request: NextRequest) {
       }
       if (body.currency !== undefined) {
         const currency = String(body.currency).trim().toUpperCase();
-        if (!/^[A-Z]{3}$/.test(currency)) return bad("Select a valid currency.");
+        if (currency !== "USD") return bad("Only USD is supported.");
         updates.currency = currency;
       }
       if (body.language !== undefined) {

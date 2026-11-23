@@ -40,7 +40,7 @@ export async function issueVerificationCode(user: { id: string; name: string; em
     verificationAttempts: 0,
   }).where(eq(users.id, user.id));
   const { html, text } = verificationCodeEmailHtml({ name: user.name, code });
-  const result = await sendEmail({ to: user.email, subject: "Verify your Tetratrades email", html, text });
+  const result = await sendEmail({ to: user.email, subject: "Verify your Denary Drill Capital Markets email", html, text });
   if (result.status === "stubbed") console.log(`[email-verify:stub] code for ${user.email}: ${code}`);
   return result;
 }

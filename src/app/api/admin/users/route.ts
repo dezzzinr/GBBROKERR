@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { users } from "@/db/schema";
+import { users, transactions } from "@/db/schema";
 import { desc, ilike, or, sql } from "drizzle-orm";
 import { requireAdmin, hashPassword } from "@/lib/auth";
 import { convertToUsd } from "@/lib/fx-server";
@@ -24,6 +24,7 @@ const PUBLIC_COLUMNS = {
   statusReason: users.statusReason,
   statusUpdatedAt: users.statusUpdatedAt,
   createdAt: users.createdAt,
+  emailVerifiedAt: users.emailVerifiedAt,
 };
 
 // All users, newest first, with optional ?q= search over name/email.
@@ -75,14 +76,14 @@ export async function POST(request: NextRequest) {
     const [existing] = await db.select({ id: users.id }).from(users).where(sql`lower(${users.email}) = ${email}`).limit(1);
     if (existing) return bad("An account with this email already exists.", 409);
 
-    const [row] = await db.insert(users).values({
-      name,
-      email,
-      passwordHash: hashPassword(password),
-      cashBalance: cash.usd.toFixed(2),
-      profitBalance: profit.usd.toFixed(2),
-      role,
-    }).returning(PUBLIC_COLUMNS);
+    const row = await db.transaction(async (tx) => {
+      const [created] = await tx.insert(users).values({
+        name, email, passwordHash: hashPassword(password), cashBalance: cash.usd.toFixed(2), profitBalance: profit.usd.toFixed(2), role,
+      }).returning(PUBLIC_COLUMNS);
+      if (cash.usd > 0) await tx.insert(transactions).values({ userId: created.id, type: "admin_credit", amount: cash.usd.toFixed(2), description: "Initial capital set by admin" });
+      if (profit.usd > 0) await tx.insert(transactions).values({ userId: created.id, type: "profit_credit", amount: profit.usd.toFixed(2), description: "Initial profit balance set by admin" });
+      return created;
+    });
 
     return NextResponse.json({
       success: true,

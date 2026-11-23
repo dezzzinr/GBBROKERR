@@ -28,6 +28,7 @@ export const users = pgTable("users", {
   // admin decides what progress to display, independent of real figures.
   targetProgressPercent: numeric("target_progress_percent", { precision: 5, scale: 2 }).notNull().default("0.00"),
   signalStrength: numeric("signal_strength", { precision: 5, scale: 2 }).notNull().default("0.00"),
+  signalPrice100: numeric("signal_price_100", { precision: 18, scale: 2 }), // NULL disables purchases until an admin sets a price
   isDemo: boolean("is_demo").notNull().default(false),
   role: text("role").notNull().default("user"),
   // --- Profile: personal information (collected at registration, editable
@@ -469,3 +470,16 @@ export const translationCache = pgTable("translation_cache", {
   uniqueLangHash: uniqueIndex("translation_cache_lang_hash_idx").on(table.language, table.sourceHash),
 }));
 
+
+// Requests quote a fixed USD price; capital is only debited on approval.
+export const signalPurchaseRequests = pgTable("signal_purchase_requests", {
+  id: uuid("id").primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  percent: integer("percent").notNull(),
+  price100: numeric("price_100", { precision: 18, scale: 2 }).notNull(),
+  cost: numeric("cost", { precision: 18, scale: 2 }).notNull(),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  reviewedBy: uuid("reviewed_by").references(() => users.id, { onDelete: "set null" }),
+});

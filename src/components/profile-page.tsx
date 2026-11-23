@@ -3,7 +3,7 @@
 import { LocalizedText, useLanguage } from "@/components/i18n-provider";
 import { useEffect, useState } from "react";
 import { BadgeCheck, Check, CircleHelp, KeyRound, Lock, Moon, Sun, UploadCloud, UserRound } from "lucide-react";
-import { COUNTRIES, currencyForCountry } from "@/lib/countries";
+import { COUNTRIES } from "@/lib/countries";
 import { GENDERS, genderLabel } from "@/lib/profile";
 import { LANGUAGES, type LanguageCode } from "@/lib/i18n";
 import { useConfirm } from "@/components/confirm-provider";
@@ -11,7 +11,6 @@ import { useTheme } from "@/components/theme-provider";
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 const ALLOWED_AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-const CURRENCIES = Array.from(new Set(COUNTRIES.map((c) => c.currency).filter((c): c is string => !!c))).sort();
 
 type Profile = {
   id: string; name: string; email: string | null; username: string | null; isDemo: boolean;
@@ -37,13 +36,11 @@ export default function ProfilePage({ onRequireAuth, onProfileUpdated, notify }:
   const [loading, setLoading] = useState(true);
   const [savingLanguage, setSavingLanguage] = useState(false);
   const [savingEmailNotifications, setSavingEmailNotifications] = useState(false);
-  const [fx, setFx] = useState<{ rate: number; status: string } | null>(null);
   const [referralCount, setReferralCount] = useState(0);
   const [referralCopied, setReferralCopied] = useState(false);
 
   const [form, setForm] = useState<Partial<Profile>>({});
   const [savingInfo, setSavingInfo] = useState(false);
-  const [savingCurrency, setSavingCurrency] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -65,7 +62,6 @@ export default function ProfilePage({ onRequireAuth, onProfileUpdated, notify }:
         if (result.profile) {
           setProfile(result.profile);
           setForm(result.profile);
-          setFx(result.fx ?? null);
           setReferralCount(result.referralCount ?? 0);
         }
       })
@@ -100,25 +96,6 @@ export default function ProfilePage({ onRequireAuth, onProfileUpdated, notify }:
       notify(err instanceof Error ? err.message : "Update failed.", true);
     } finally {
       setSavingInfo(false);
-    }
-  };
-
-  const saveCurrency = async (currency: string) => {
-    setSavingCurrency(true);
-    try {
-      const result = await patch({ action: "updateProfile", currency });
-      setProfile(result.profile);
-      setForm((f) => ({ ...f, currency: result.profile.currency }));
-      // The server returns a fresh rate for the newly chosen currency -
-      // without it the "1 USD ≈ X" hint would keep showing the old
-      // currency's rate until the page was reloaded.
-      if (result.fx) setFx(result.fx);
-      notify(`Display currency set to ${result.profile.currency ?? currency}.`);
-      onProfileUpdated();
-    } catch (err) {
-      notify(err instanceof Error ? err.message : "Update failed.", true);
-    } finally {
-      setSavingCurrency(false);
     }
   };
 
@@ -229,23 +206,22 @@ export default function ProfilePage({ onRequireAuth, onProfileUpdated, notify }:
   if (!profile || profile.isDemo) {
     return (
       <>
-        <div className="page-heading"><div><div className="eyebrow">{<LocalizedText text={"YOUR WORKSPACE"}/>}</div><h1>{<LocalizedText text={"Profile"}/>}</h1><p>{<LocalizedText text={"Manage your personal information, security, and currency preferences."}/>}</p></div></div>
+        <div className="page-heading"><div><div className="eyebrow">{<LocalizedText text={"YOUR WORKSPACE"}/>}</div><h1>{<LocalizedText text={"Profile"}/>}</h1><p>{<LocalizedText text={"Manage your personal information, and security."}/>}</p></div></div>
         <div className="panel"><div className="empty-state">
           <span className="empty-icon"><UserRound size={27} /></span>
           <h3>{<LocalizedText text={"Create an account to set up your profile"}/>}</h3>
-          <p>{<LocalizedText text={"You're exploring Tetratrades in demo mode. Create a free account to save your profile details, change your password, and set your preferred currency."}/>}</p>
+          <p>{<LocalizedText text={"You're exploring Denary Drill Capital Markets in demo mode. Create a free account to save your profile details, change your password, and manage your profile."}/>}</p>
           <button className="primary-btn" style={{ marginTop: 14 }} onClick={() => onRequireAuth("register")}>{<LocalizedText text={"Create an account"}/>}</button>
         </div></div>
       </>
     );
   }
 
-  const selectedCountry = COUNTRIES.find((c) => c.code === form.country) ?? null;
   const initials = profile.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
 
   return (
     <>
-      <div className="page-heading"><div><div className="eyebrow">{<LocalizedText text={"YOUR WORKSPACE"}/>}</div><h1>{<LocalizedText text={"Profile"}/>}</h1><p>{<LocalizedText text={"Manage your personal information, security, and currency preferences."}/>}</p></div></div>
+      <div className="page-heading"><div><div className="eyebrow">{<LocalizedText text={"YOUR WORKSPACE"}/>}</div><h1>{<LocalizedText text={"Profile"}/>}</h1><p>{<LocalizedText text={"Manage your personal information, and security."}/>}</p></div></div>
 
       <div className="panel profile-header-card">
         <span className="profile-avatar-lg">{profile.profilePhoto ? <img src={profile.profilePhoto} alt={translateUI("Your profile")} /> : initials}</span>
@@ -282,15 +258,8 @@ export default function ProfilePage({ onRequireAuth, onProfileUpdated, notify }:
               <div className="form-field"><label className="input-label">{<LocalizedText text={"City"}/>}</label><input className="text-input" value={form.city ?? ""} onChange={(e) => setForm({ ...form, city: e.target.value })} /></div>
               <div className="form-field field-full"><label className="input-label">{<LocalizedText text={"Residential address"}/>}</label><input className="text-input" value={form.address ?? ""} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
             </div>
-            {selectedCountry && <p className="form-hint">{<LocalizedText text={"Country of"}/>} {selectedCountry.name} {<LocalizedText text={"— local currency"}/>} {currencyForCountry(selectedCountry.code)}{<LocalizedText text={". Your display currency is set separately below."}/>}</p>}
             <div className="profile-save-row"><button className="primary-btn" disabled={savingInfo}>{savingInfo ? translateUI("Saving...") : translateUI("Save changes")}</button></div>
           </form>
-        </div>
-
-        <div className="panel">
-          <h3>{<LocalizedText text={"Display currency"}/>}</h3><p className="panel-subtitle">{<LocalizedText text={"Balances, prices, and profit/loss are converted for display using a live exchange rate. Your real ledger always stays in USD."}/>}</p>
-          <div className="select-wrap"><select data-testid="currency-select" value={form.currency ?? "USD"} disabled={savingCurrency} onChange={(e) => { setForm({ ...form, currency: e.target.value }); void saveCurrency(e.target.value); }}>{CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
-          {fx && <p className="form-hint">{<LocalizedText text={"1 USD ≈"}/>} {fx.rate.toLocaleString("en-US", { maximumFractionDigits: 4 })} {profile.currency} {fx.status !== "live" && translateUI("(rate may be slightly delayed)")}</p>}
         </div>
 
         <div className="panel">
@@ -299,7 +268,7 @@ export default function ProfilePage({ onRequireAuth, onProfileUpdated, notify }:
         </div>
 
         <div className="panel">
-          <h3>{<LocalizedText text={"Appearance"}/>}</h3><p className="panel-subtitle">{<LocalizedText text={"Choose how Tetratrades looks on this device. Saved locally, so other devices keep their own preference."}/>}</p>
+          <h3>{<LocalizedText text={"Appearance"}/>}</h3><p className="panel-subtitle">{<LocalizedText text={"Choose how Denary Drill Capital Markets looks on this device. Saved locally, so other devices keep their own preference."}/>}</p>
           <div className="theme-row" style={{ padding: 0 }}>
             <div className="theme-row-label"><strong>{<LocalizedText text={"Theme"}/>}</strong><span>{theme === "dark" ? translateUI("Dark mode is on") : translateUI("Light mode is on")}</span></div>
             <div className="theme-switch" data-testid="theme-switch">
