@@ -79,6 +79,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin, onRegistered, 
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || t("Registration failed."));
+      if (result.verificationEmailSent === false) sessionStorage.setItem("verification-email-warning", "If resend continues to fail, contact support for help.");
       await onRegistered();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("Registration failed."));

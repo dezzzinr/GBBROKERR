@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
         emailVerifiedAt: null, // gates this account behind the email-verification screen until the 4-digit code is entered
       }).returning();
 
-      await issueVerificationCode(user as { id: string; name: string; email: string });
+      const verificationEmail = await issueVerificationCode(user as { id: string; name: string; email: string });
 
       if (referrer) {
         // One-time bonus to both sides, paid from nowhere (paper money) -
@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
           ? `Your account is ready with a ${newUserFmt.money(REFERRAL_BONUS_AMOUNT)} referral bonus for signing up with ${referrer.name}'s code already credited to your balance. Make a deposit to add more paper trading funds, then explore the markets, place your first trade, or check out the trading bots and copy trading catalog.`
           : `Your account is ready with a ${newUserFmt.money(0)} balance. Head to Deposit to add paper trading funds, then explore the markets, place your first trade, or check out the trading bots and copy trading catalog whenever you're ready.`,
       });
-      return await setSession(NextResponse.json({ success: true }), user.id);
+      return await setSession(NextResponse.json({ success: true, verificationEmailSent: verificationEmail.status === "sent" }), user.id);
     }
 
     if (action === "login") {
@@ -216,7 +216,8 @@ export async function POST(request: NextRequest) {
         const waitSec = Math.ceil((VERIFICATION_RESEND_COOLDOWN_MS - (Date.now() - user.verificationCodeSentAt.getTime())) / 1000);
         return bad(`Please wait ${waitSec}s before requesting another code.`);
       }
-      await issueVerificationCode(user as { id: string; name: string; email: string });
+      const result = await issueVerificationCode(user as { id: string; name: string; email: string });
+      if (result.status !== "sent") return bad("We couldn't send the code right now. Please try again shortly or contact support.", 503);
       return NextResponse.json({ success: true, message: "A new code has been sent to your email." });
     }
 
@@ -228,13 +229,15 @@ export async function POST(request: NextRequest) {
       const identifier = String(body.identifier ?? "").trim();
       const genericOk = NextResponse.json({ success: true, message: "If an eligible account matches, a reset link will be sent to its email address." });
       if (!identifier || identifier.length > 254) return genericOk;
-      // Check global configuration before looking up an account, so the same
-      // operational error is returned for every identifier without enumeration.
+      // APP_URL is optional: without a public URL, the email contains a token
+      // that users can paste into /reset-password. Validate it when supplied.
       const base = appUrl();
-      try {
-        const url = new URL(base || "");
-        if (!(["https:", ...(process.env.NODE_ENV !== "production" ? ["http:"] : [])].includes(url.protocol))) throw new Error("Invalid reset URL protocol");
-      } catch { console.error("[password-reset] unavailable: configure a valid public APP_URL."); return bad("Password reset is temporarily unavailable. Please contact support.", 503); }
+      if (base) {
+        try {
+          const url = new URL(base);
+          if (!(["https:", ...(process.env.NODE_ENV !== "production" ? ["http:"] : [])].includes(url.protocol))) throw new Error("Invalid reset URL protocol");
+        } catch { console.error("[password-reset] unavailable: configure a valid public APP_URL."); return bad("Password reset is temporarily unavailable. Please contact support.", 503); }
+      }
       if (!process.env.RESEND_API_KEY?.trim()) {
         console.error("[password-reset] unavailable: RESEND_API_KEY is not configured.");
         return bad("Password reset is temporarily unavailable. Please contact support.", 503);

@@ -264,9 +264,17 @@ function HomePageInner() {
   // immediately but sees a full-screen "enter your code" gate (rendered
   // further below) instead of the dashboard until data.user.emailVerified.
   const [verifyCode, setVerifyCode] = useState("");
+  const [verificationEmailNotice, setVerificationEmailNotice] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  useEffect(() => {
+    const notice = sessionStorage.getItem("verification-email-warning");
+    if (notice) {
+      setVerificationEmailNotice(notice);
+      sessionStorage.removeItem("verification-email-warning");
+    }
+  }, []);
   useEffect(() => {
     if (resendCooldown <= 0) return;
     const id = setInterval(() => setResendCooldown(s => Math.max(0, s - 1)), 1000);
@@ -882,7 +890,8 @@ function HomePageInner() {
         <div className="modal-brand"><div className="brand-icon"><DdcmMark size={23}/></div><span className="ddcm-wordmark">DDCM</span></div>
         <div className="verify-icon"><Mail size={28}/></div>
         <h2>{<LocalizedText text={"Verify your email"}/>}</h2>
-        <p>{<LocalizedText text={"We sent a 4-digit code to"}/>} <strong>{data.user.email}</strong>{<LocalizedText text={". Enter it below to unlock your account."}/>}</p>
+        <p>{verificationEmailNotice ? "We couldn't send a 4-digit code to" : <LocalizedText text={"We sent a 4-digit code to"}/>} <strong>{data.user.email}</strong>{verificationEmailNotice ? ". Use Resend code below to try again." : <LocalizedText text={". Enter it below to unlock your account."}/>}</p>
+        {verificationEmailNotice && <p className="form-error-text" role="alert">{verificationEmailNotice}</p>}
         <form onSubmit={verifyEmailCode}>
           <input className="verify-code-input" type="text" inputMode="numeric" pattern="[0-9]*" maxLength={4} placeholder={translateUI("0000")} value={verifyCode} onChange={e=>setVerifyCode(e.target.value.replace(/\D/g, "").slice(0, 4))} autoFocus required/>
           <button className="primary-btn full-btn" disabled={verifying || verifyCode.length !== 4}>{verifying ? translateUI("Verifying...") : translateUI("Verify email")}<ArrowRight size={17}/></button>

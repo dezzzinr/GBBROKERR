@@ -42,5 +42,13 @@ export async function issueVerificationCode(user: { id: string; name: string; em
   const { html, text } = verificationCodeEmailHtml({ name: user.name, code });
   const result = await sendEmail({ to: user.email, subject: "Verify your Denary Drill Capital Markets email", html, text });
   if (result.status === "stubbed") console.log(`[email-verify:stub] code for ${user.email}: ${code}`);
+  if (result.status !== "sent") {
+    await db.update(users).set({
+      verificationCodeHash: null,
+      verificationCodeExpiresAt: null,
+      verificationCodeSentAt: null,
+      verificationAttempts: 0,
+    }).where(eq(users.id, user.id));
+  }
   return result;
 }
