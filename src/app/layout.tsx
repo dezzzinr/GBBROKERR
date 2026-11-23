@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
-import JivoChat from "@/components/jivo-chat";
-import SmartsuppWidget from "@/components/smartsupp-widget";
+import ChaportChat from "@/components/chaport-chat";
 import { LanguageProvider } from "@/components/i18n-provider";
 
 export const metadata: Metadata = {
@@ -11,5 +10,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  return <html lang="en"><body suppressHydrationWarning><LanguageProvider>{children}<JivoChat/><SmartsuppWidget/></LanguageProvider></body></html>;
+  return <html lang="en"><body suppressHydrationWarning><LanguageProvider>{children}<ChaportChat/></LanguageProvider></body></html>;
 }

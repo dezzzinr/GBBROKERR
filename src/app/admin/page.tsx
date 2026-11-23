@@ -847,12 +847,11 @@ function AdminPageInner() {
               <p>Verification: <strong>{userDetail.user.isDemo ? "Demo account" : userDetail.user.emailVerifiedAt ? "Verified / approved" : "Pending approval"}</strong></p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
                 {!userDetail.user.isDemo && !userDetail.user.emailVerifiedAt && <button type="button" className="primary-btn" disabled={userActionBusy} onClick={() => void runUserAction("approve")}>Approve without OTP</button>}
-                {userDetail.user.role === "user" && !userDetail.user.isDemo && <button type="button" className="outline-btn" disabled={userActionBusy} onClick={() => void runUserAction("delete")}>Permanently delete user</button>}
               </div>
             </div>
             <div className="admin-accounts-layout">
               <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-                <section className="panel admin-panel">
+                <section className="panel admin-panel admin-user-profile-panel">
                   <SectionHeadSimple title={translateUI("Profile")} subtitle="Name, email, and role"/>
                   <form className="admin-account-form" onSubmit={saveUserProfile}>
                     <label className="input-label">{<LocalizedText text={"Full name"}/>}</label><input className="text-input" value={editUserForm.name} onChange={e => setEditUserForm({ ...editUserForm, name: e.target.value })} maxLength={80}/>
@@ -884,10 +883,17 @@ function AdminPageInner() {
                   </form>
                 </section>
 
-                <section className="panel admin-panel">
-                  <SectionHeadSimple title="Profit to capital permission" subtitle="Enable after confirming the user's trade is complete. This setting stays enabled until you disable it."/>
-                  <div className="profile-readonly-row"><span>Transfers to capital</span><strong>{userDetail.user.profitTransferEnabled ? "Enabled" : "Disabled"}</strong></div>
-                  <button type="button" className={userDetail.user.profitTransferEnabled ? "outline-btn full-btn" : "primary-btn full-btn"} disabled={profitPermissionBusy} onClick={() => void setProfitTransferPermission(!userDetail.user.profitTransferEnabled)} style={{ marginTop: 14 }}>{profitPermissionBusy ? "Saving…" : userDetail.user.profitTransferEnabled ? "Disable transfers" : "Enable transfers"}</button>
+                <section className="panel admin-panel admin-user-profit-permission">
+                  <SectionHeadSimple title="Profit to capital permission" subtitle="Control whether this user can move profits into Capital."/>
+                  <div className="admin-user-profit-controls">
+                    <div className={`admin-profit-status ${userDetail.user.profitTransferEnabled ? "is-enabled" : "is-disabled"}`}>
+                      <span className="admin-profit-status-icon"><ShieldCheck size={18}/></span>
+                      <span className="admin-profit-status-copy"><small>Current status</small><strong>{userDetail.user.profitTransferEnabled ? "Transfers enabled" : "Transfers disabled"}</strong></span>
+                      <span className="admin-profit-status-pill">{userDetail.user.profitTransferEnabled ? "ON" : "OFF"}</span>
+                    </div>
+                    <p className="admin-profit-status-hint">{userDetail.user.profitTransferEnabled ? "This user can move eligible profits into Capital." : "Enable this after confirming the user's trade is complete."}</p>
+                    <button type="button" className={`admin-profit-toggle ${userDetail.user.profitTransferEnabled ? "turn-off" : "turn-on"}`} disabled={profitPermissionBusy} onClick={() => void setProfitTransferPermission(!userDetail.user.profitTransferEnabled)}>{profitPermissionBusy ? "Saving changes…" : userDetail.user.profitTransferEnabled ? "Disable profit transfers" : "Enable profit transfers"}</button>
+                  </div>
                 </section>
 
                 <section className="panel admin-panel">
@@ -1002,6 +1008,9 @@ function AdminPageInner() {
                 </section>
               </div>
             </div>
+            {userDetail.user.role === "user" && !userDetail.user.isDemo && <section className="admin-user-danger-zone" aria-label="Danger zone">
+              <button type="button" className="danger-delete-user" disabled={userActionBusy} onClick={() => void runUserAction("delete")}>{userActionBusy ? "Deleting…" : "Permanently delete user"}</button>
+            </section>}
           </>}
         </>}
 

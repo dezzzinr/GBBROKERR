@@ -575,3 +575,47 @@ body { background: var(--bg); color: var(--ink); }
 /* Keep text inputs at 16px on touch/mobile to prevent iOS focus zoom, while retaining pinch-to-zoom. */
 .ddcm-back-home{display:inline-flex;align-items:center;gap:7px;align-self:flex-start;color:#b7cebd;text-decoration:none;font-size:12px;font-weight:650;margin-bottom:32px}.ddcm-back-home:hover{color:#fff}.ddcm-back-home:focus-visible{outline:2px solid #a4e5bf;outline-offset:4px}
 @media (max-width: 767px), (pointer: coarse){input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),select,textarea{font-size:16px!important}}
+
+/* Manage user detail cards: comfortable spacing and a clear danger action. */
+.admin-user-profile-panel{overflow:hidden;padding-bottom:2px}
+.admin-user-profile-panel .admin-account-form{padding:16px 20px 18px}
+.admin-user-profile-panel .profile-readonly-row{margin:0 20px;padding:12px 0}
+.admin-user-profile-panel .profile-readonly-row:last-child{border-bottom:1px solid var(--line);margin-bottom:18px}
+.admin-user-profit-permission{overflow:hidden;padding-bottom:18px}
+.admin-user-profit-controls{padding:16px 20px 0}
+.admin-profit-status{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--line);border-radius:11px;background:var(--surface-soft);min-width:0}
+.admin-profit-status-icon{width:38px;height:38px;display:grid;place-items:center;flex:0 0 auto;border-radius:10px}
+.admin-profit-status.is-enabled .admin-profit-status-icon{background:var(--tint-green-bg);color:var(--tint-green-fg)}
+.admin-profit-status.is-disabled .admin-profit-status-icon{background:var(--tint-neutral-bg);color:var(--tint-neutral-fg)}
+.admin-profit-status-copy{display:flex;flex-direction:column;gap:4px;flex:1;min-width:0}
+.admin-profit-status-copy small{font-size:10px;color:var(--muted);font-weight:650}
+.admin-profit-status-copy strong{font-size:13px;color:var(--ink);overflow-wrap:anywhere}
+.admin-profit-status-pill{flex:0 0 auto;padding:5px 9px;border-radius:999px;font-size:9px;font-weight:850;letter-spacing:.5px}
+.admin-profit-status.is-enabled .admin-profit-status-pill{color:var(--tint-green-fg);background:var(--tint-green-bg)}
+.admin-profit-status.is-disabled .admin-profit-status-pill{color:var(--tint-neutral-fg);background:var(--tint-neutral-bg)}
+.admin-profit-status-hint{margin:10px 2px 0;color:var(--muted);font-size:11px;line-height:1.5}
+.admin-profit-toggle{width:100%;min-height:44px;margin-top:14px;padding:10px 14px;border:1px solid transparent;border-radius:9px;font-size:12px;font-weight:750;transition:background .15s ease,border-color .15s ease}
+.admin-profit-toggle.turn-on{background:#147b55;color:#fff}
+.admin-profit-toggle.turn-on:hover:not(:disabled){filter:brightness(.94)}
+.admin-profit-toggle.turn-off{border-color:var(--tint-red-border);background:var(--tint-red-bg);color:var(--tint-red-fg)}
+.admin-profit-toggle.turn-off:hover:not(:disabled){filter:brightness(.97)}
+.admin-user-danger-zone{display:flex;justify-content:flex-end;margin-top:18px;padding-bottom:24px}
+.danger-delete-user{min-height:44px;padding:0 18px;border:1px solid #c82f3b;border-radius:8px;background:#d83b48;color:#fff;font-size:12px;font-weight:750;box-shadow:0 3px 10px #d83b4822}
+.danger-delete-user:hover:not(:disabled){background:#bd2c38;border-color:#bd2c38}
+[data-theme="dark"] .danger-delete-user{background:#b52b38;border-color:#d34a55}
+[data-theme="dark"] .danger-delete-user:hover:not(:disabled){background:#c83743}
+@media(max-width:600px){
+  .admin-user-profile-panel .section-head{padding:18px 18px 0}
+  .admin-user-profile-panel .admin-account-form{padding:16px 18px 18px}
+  .admin-user-profile-panel .profile-readonly-row{margin:0 18px;gap:10px;align-items:flex-start;line-height:1.45}
+  .admin-user-profile-panel .profile-readonly-row span:last-child{max-width:62%;overflow-wrap:anywhere}
+  .admin-user-profit-permission .section-head{padding:18px 18px 0}
+  .admin-user-profit-controls{padding:16px 16px 0}
+  .admin-profit-status{gap:10px;padding:12px}
+  .admin-profit-status-icon{width:34px;height:34px}
+  .admin-profit-status-copy strong{font-size:12px}
+  .admin-profit-status-pill{padding:5px 8px}
+  .admin-profit-toggle{min-height:46px}
+  .admin-user-danger-zone{display:block;margin-top:20px;padding-bottom:30px}
+  .danger-delete-user{width:100%;min-height:48px}
+}
