@@ -43,7 +43,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           userId: id,
           type: delta > 0 ? "admin_credit" : "admin_debit",
           amount: Math.abs(delta).toFixed(2),
-          description: note || `Balance ${delta > 0 ? "increased" : "decreased"} by admin`,
+          description: note || `Balance ${delta > 0 ? "increased" : "decreased"}`,
         });
       }
       return { delta, currency: wallet.currency };
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         userId: id,
         type: result.delta > 0 ? "admin_credit" : "admin_debit",
         title: result.delta > 0 ? "Balance credited" : "Balance debited",
-        message: `An admin ${result.delta > 0 ? "credited" : "debited"} ${userFmt.money(Math.abs(result.delta))} ${result.delta > 0 ? "to" : "from"} your account balance.${note ? ` Note: ${note}` : ""}`,
+        message: `${userFmt.money(Math.abs(result.delta))} was ${result.delta > 0 ? "added to" : "deducted from"} your account balance.${note ? ` Note: ${note}` : ""}`,
       });
     }
 

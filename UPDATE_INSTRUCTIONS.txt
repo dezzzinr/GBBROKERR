@@ -1,9 +1,9 @@
-DDCM BOT CARD LAYOUT UPDATE
+DDCM AUTH AND MOBILE INPUT FIXES
 
-This cumulative ZIP supersedes prior updates. Back up or commit your project and database, stop the dev server, and extract into the project root preserving paths. Included files overwrite local edits.
+This cumulative ZIP supersedes previous updates. Back up/commit the project and back up the database. Stop the dev server before extracting into the project root preserving paths. Included files overwrite local edits.
 
-The Active trade card now shows the current bot's active plan allocation as the main amount, with the bot name underneath. The balance visibility toggle continues to hide the allocation. Both Overview and Portfolio use the same card.
+Sign-in and sign-up now include a Back to homepage link. The decorative arrow in the top-right of the auth showcase has been removed. Touch/mobile text inputs, selects and textareas use a minimum 16px font to prevent iOS automatic focus zoom; manual pinch-to-zoom remains available. Test on your own phone/browser.
 
-The previous profit transfer permission feature remains: users default to disabled, and an admin must enable profit-to-capital transfers for each user. MANDATORY before running new code: after checking DATABASE_URL and backing up, run node scripts/migrate-profit-transfer.mjs on each database. If earlier migrations were not applied, run node scripts/migrate-password-reset.mjs and node scripts/migrate-signal-purchase.mjs and ensure migrations/20261120_dashboard_gauges.sql is applied.
+Previous profit transfer permission feature remains: default disabled for all users. Before deploying new code, back up and verify DATABASE_URL, then run node scripts/migrate-profit-transfer.mjs against each database. If earlier migrations were not applied, also run node scripts/migrate-password-reset.mjs and node scripts/migrate-signal-purchase.mjs; ensure migrations/20261120_dashboard_gauges.sql is applied.
 
-Jivo requires NEXT_PUBLIC_JIVO_WIDGET_ID and a rebuild; password reset requires APP_URL, RESEND_API_KEY and verified EMAIL_FROM. Database-backed end-to-end testing was not performed.
+Jivo requires NEXT_PUBLIC_JIVO_WIDGET_ID and a rebuild. Reset emails need APP_URL, RESEND_API_KEY and verified EMAIL_FROM. Production build and lint for changed components passed; physical mobile and database-backed end-to-end testing were not performed.

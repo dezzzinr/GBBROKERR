@@ -3,7 +3,8 @@ import DdcmMark from "@/components/ddcm-mark";
 
 import { LocalizedText, useLanguage } from "@/components/i18n-provider";
 import { useEffect, useState } from "react";
-import { ArrowRight, LockKeyhole, X } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, ArrowRight, LockKeyhole, X } from "lucide-react";
 import AuthShowcase from "@/components/auth-showcase";
 import { COUNTRIES } from "@/lib/countries";
 type Props = {
@@ -93,6 +94,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin, onRegistered, 
       <div className={standalone ? "register-modal ddcm-register" : "register-modal"}>
         {!standalone && <button className="modal-close" onClick={onClose} aria-label={translateUI("Close")}><X size={20} /></button>}
         {standalone ? <div className="ddcm-auth-mobile-brand">DDCM <span>DENARY DRILL CAPITAL MARKETS</span></div> : <div className="modal-brand"><div className="brand-icon"><DdcmMark size={22}/></div><span className="ddcm-wordmark">DDCM</span></div>}
+        {standalone && <Link href="/" className="ddcm-back-home"><ArrowLeft size={15}/> Back to homepage</Link>}
         {standalone && <span className="ddcm-auth-kicker">YOUR ACCOUNT</span>}
         <h2>{standalone ? "Create your account" : t("Join Denary Drill Capital Markets")}</h2>
         <p>{standalone ? "Enter your details to get started with DDCM." : t("Your trading journey starts here. Just the basics for now — you can add your photo, username, date of birth, and more anytime from your Profile page.")}</p>

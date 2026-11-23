@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, Eye, EyeOff, LockKeyhole } from "lucide-react";
+import { ArrowLeft, ArrowRight, Eye, EyeOff, LockKeyhole } from "lucide-react";
 import RegisterModal from "@/components/register-modal";
 import ForgotPasswordModal from "@/components/forgot-password-modal";
 import AuthShowcase from "@/components/auth-showcase";
@@ -33,6 +33,7 @@ export default function AuthPage({ mode }: { mode: "sign-in" | "sign-up" }) {
       <AuthShowcase mode="sign-in"/>
       <section className="ddcm-auth-content" aria-labelledby="signin-title">
         <div className="ddcm-auth-form-wrap">
+          <Link href="/" className="ddcm-back-home"><ArrowLeft size={15}/> Back to homepage</Link>
           <div className="ddcm-auth-mobile-brand">DDCM <span>DENARY DRILL CAPITAL MARKETS</span></div>
           <div className="ddcm-auth-heading"><span className="ddcm-auth-kicker">YOUR ACCOUNT</span><h2 id="signin-title">Welcome back</h2><p>Sign in to continue to your account.</p></div>
           <form onSubmit={submit}>

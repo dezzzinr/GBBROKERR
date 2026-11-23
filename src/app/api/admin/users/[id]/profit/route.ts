@@ -43,7 +43,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           userId: id,
           type: delta > 0 ? "profit_credit" : "profit_debit",
           amount: Math.abs(delta).toFixed(2),
-          description: note || `Profit balance ${delta > 0 ? "increased" : "decreased"} by admin`,
+          description: note || `Profit balance ${delta > 0 ? "increased" : "decreased"}`,
         });
       }
       return { delta, currency: wallet.currency };
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         userId: id,
         type: result.delta > 0 ? "profit_credit" : "profit_debit",
         title: result.delta > 0 ? "Profits credited" : "Profits adjusted",
-        message: `An admin ${result.delta > 0 ? "credited" : "debited"} ${userFmt.money(Math.abs(result.delta))} ${result.delta > 0 ? "to" : "from"} your profit balance.${note ? ` Note: ${note}` : ""}`,
+        message: `${userFmt.money(Math.abs(result.delta))} was ${result.delta > 0 ? "added to" : "deducted from"} your profit balance.${note ? ` Note: ${note}` : ""}`,
       });
     }
 
