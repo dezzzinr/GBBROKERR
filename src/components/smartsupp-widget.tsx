@@ -9,7 +9,7 @@ import Script from "next/script";
 // the "key" value shown in the embed snippet, a ~24-character hex string).
 export default function SmartsuppWidget() {
   const key = process.env.NEXT_PUBLIC_SMARTSUPP_KEY;
-  if (!key) return null;
+  if (!key || /^[A-Za-z0-9_-]{1,100}$/.test(process.env.NEXT_PUBLIC_JIVO_WIDGET_ID?.trim() ?? "")) return null;
 
   return (
     <Script id="smartsupp-widget" strategy="afterInteractive">

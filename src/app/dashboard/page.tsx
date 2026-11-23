@@ -38,7 +38,7 @@ function FundingMethodIcon({ method, size = 18 }: { method: string; size?: numbe
   return <Icon size={size} aria-hidden="true"/>;
 }
 type Notification = { id: string; type?: string; title: string; message: string; readAt: string | null; createdAt: string; aboutUserId?: string | null };
-type AppData = { user: { id: string; name: string; email: string | null; username?: string | null; isDemo: boolean; role: string; emailVerified: boolean; cashBalance: number; profitBalance: number; targetBalance: number; targetProgressPercent: number; signalStrength: number; signalPrice100: number | null; accountStatus: string; maxTradeAmount: number | null; withdrawalsBlocked: boolean; statusReason: string | null; profilePhoto?: string | null; currency?: string; language?: string }; holdings: { id: string; symbol: string; quantity: string; avgPrice: string }[]; activeTradeValue: number; trades: { id: string; symbol: string; side: string; quantity: string; price: string; total: string; createdAt: string; placedBy: string | null; adminNote: string | null }[]; transactions: { id: string; type: string; amount: string; description: string; createdAt: string }[]; plan: string | null; planExpiresAt: string | null; planAmount: number | null; notifications: Notification[]; unreadNotifications: number; fx?: { currency: string; rate: number; status: string; updatedAt: string | null } };
+type AppData = { user: { id: string; name: string; email: string | null; username?: string | null; isDemo: boolean; role: string; emailVerified: boolean; cashBalance: number; profitBalance: number; targetBalance: number; targetProgressPercent: number; signalStrength: number; signalPrice100: number | null; accountStatus: string; maxTradeAmount: number | null; withdrawalsBlocked: boolean; profitTransferEnabled: boolean; statusReason: string | null; profilePhoto?: string | null; currency?: string; language?: string }; holdings: { id: string; symbol: string; quantity: string; avgPrice: string }[]; activeTradeValue: number; currentBot: { id: string; name: string; allocation: number; startedAt: string; activePlanCount: number } | null; trades: { id: string; symbol: string; side: string; quantity: string; price: string; total: string; createdAt: string; placedBy: string | null; adminNote: string | null }[]; transactions: { id: string; type: string; amount: string; description: string; createdAt: string }[]; plan: string | null; planExpiresAt: string | null; planAmount: number | null; notifications: Notification[]; unreadNotifications: number; fx?: { currency: string; rate: number; status: string; updatedAt: string | null } };
 type CopyTrader = { id: string; name: string; handle: string; avatarInitials: string; avatarColor: string; focus: string; bio: string; riskLevel: string; returnPercent: string; winRate: string; subscriptionAmount: string; subscriptionDurationDays: number; rating: string; country: string; photoUrl: string | null; activeSubscribers: number; mySubscription: { expiresAt: string; amount: string } | null };
 type CopySubscription = { id: string; traderId: string; traderName: string; traderHandle: string; amount: string; startedAt: string; expiresAt: string };
 type TradingBot = { id: string; name: string; description: string; strategy: string; riskLevel: string; minAllocation: string; maxAllocation: string; features: string[]; subscriptionAmount: string; subscriptionDurationDays: number; rating: string; country: string; photoUrl: string | null; subscriberCount: number; mySubscription: { expiresAt: string | null; startedAt: string; amount: string; purchaseCount: number } | null };
@@ -48,10 +48,10 @@ type PlanSubscription = { id: string; planId: string; planName: string; amount: 
 type Order = { id: string; symbol: string; side: "buy" | "sell"; type: OrderType; quantity: string; triggerPrice: string; status: string; filledPrice: string | null; filledAt: string | null; cancelledAt: string | null; expiresAt: string | null; createdAt: string };
 type Position = { id: string; symbol: string; side: PositionSide; leverage: string; margin: string; quantity: string; entryPrice: string; liquidationPrice: string; takeProfitPrice: string | null; stopLossPrice: string | null; status: string; closePrice: string | null; closeReason: string | null; realizedPnl: string | null; expiresAt: string | null; createdAt: string; closedAt: string | null; currentPrice?: number; unrealizedPnl?: number };
 const preview: AppData = {
-  user: { id: "", name: "Account", email: null, username: null, isDemo: false, role: "user", emailVerified: true, cashBalance: 0, profitBalance: 0, targetBalance: 0, targetProgressPercent: 0, signalStrength: 0, signalPrice100: null, accountStatus: "active", maxTradeAmount: null, withdrawalsBlocked: false, statusReason: null, profilePhoto: null, currency: "USD" },
+  user: { id: "", name: "Account", email: null, username: null, isDemo: false, role: "user", emailVerified: true, cashBalance: 0, profitBalance: 0, targetBalance: 0, targetProgressPercent: 0, signalStrength: 0, signalPrice100: null, accountStatus: "active", maxTradeAmount: null, withdrawalsBlocked: false, profitTransferEnabled: false, statusReason: null, profilePhoto: null, currency: "USD" },
   holdings: [],
   trades: [],
-  activeTradeValue: 0, transactions: [], plan: null, planExpiresAt: null, planAmount: null, notifications: [], unreadNotifications: 0, fx: { currency: "USD", rate: 1, status: "live", updatedAt: null }
+  activeTradeValue: 0, currentBot: null, transactions: [], plan: null, planExpiresAt: null, planAmount: null, notifications: [], unreadNotifications: 0, fx: { currency: "USD", rate: 1, status: "live", updatedAt: null }
 };
 const navGroups: { label: string; items: { name: Page; icon: typeof LayoutDashboard }[] }[] = [
   { label: "WORKSPACE", items: [{ name: "Overview", icon: LayoutDashboard }, { name: "Portfolio", icon: Wallet }] },
@@ -170,7 +170,9 @@ function HomePageInner() {
   }, [page]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [workspaceError, setWorkspaceError] = useState("");
   const [profitTransferBusy, setProfitTransferBusy] = useState(false);
+  const [profitTransferBlocked, setProfitTransferBlocked] = useState("");
   const [hideBalance, setHideBalance] = useState(false);
   const [activity, setActivity] = useState<{ id: string; type: string; description: string; amount: string; status: string; createdAt: string; direction: string }[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
@@ -356,6 +358,7 @@ function HomePageInner() {
   const [subscribingId, setSubscribingId] = useState("");
   const [tradingBots, setTradingBots] = useState<TradingBot[]>([]);
   const [tradingBotsLoaded, setTradingBotsLoaded] = useState(false);
+  const [tradingBotsError, setTradingBotsError] = useState("");
   const [botSubHistory, setBotSubHistory] = useState<BotSubscription[]>([]);
   const [botSubscribingId, setBotSubscribingId] = useState("");
   const [botPlanAmounts, setBotPlanAmounts] = useState<Record<string, string>>({});
@@ -397,22 +400,33 @@ function HomePageInner() {
     }
   };
   const refresh = async () => {
-    setRefreshing(true);
+    setRefreshing(true); setWorkspaceError("");
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 15000);
     try {
-      const response = await fetch("/api/app", { cache: "no-store" });
+      const response = await fetch("/api/app", { cache: "no-store", signal: controller.signal });
       if (response.status === 403) {
         const result = await response.json().catch(() => ({}));
-        if (result.locked) { notify(result.error || "This account has been locked.", true); return void refresh(); }
+        if (result.locked) { setWorkspaceError(result.error || "This account has been locked. Contact support."); return; }
       }
       if (response.status === 401) { window.location.replace("/sign-in"); return; }
-      if (!response.ok) throw new Error("Could not load your account");
+      if (!response.ok) throw new Error("Could not load your account. Please try again.");
       setData(await response.json());
       setReady(true);
-    } catch { notify("Could not connect to your workspace. Please refresh.", true); }
-    finally { setRefreshing(false); }
+    } catch (error) {
+      const message = error instanceof Error && error.name === "AbortError" ? "The request took too long. Please try again." : "Could not load your account. Please try again.";
+      setWorkspaceError(message);
+    } finally { window.clearTimeout(timeout); setRefreshing(false); }
   };
   useEffect(() => { void refresh(); }, []);
   useEffect(() => page === "Overview" && ready ? deferEffect(() => { void loadActivity(); }) : undefined, [page, ready, data.user.id]);
+  // Pick up admin-created plans when the user returns to the dashboard.
+  useEffect(() => {
+    if (!ready) return;
+    const onFocus = () => { if (document.visibilityState === "visible") void refresh(); };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [ready]);
   useEffect(() => page === "Signal Strength" && ready ? deferEffect(() => { void loadSignalRequests(); void refresh(); }) : undefined, [page, ready]);
 
   // A signed-in user's saved language preference (set from their Profile
@@ -516,8 +530,6 @@ function HomePageInner() {
   const holdingsCostBasis = data.holdings.reduce((sum, h) => sum + Number(h.quantity) * Number(h.avgPrice), 0);
   const portfolioValue = data.activeTradeValue;
   const totalBalance = holdingsCostBasis + portfolioValue + data.user.cashBalance + data.user.profitBalance;
-  const latestSubscribedBot = tradingBots.filter(bot => bot.mySubscription).sort((a, b) => Date.parse(b.mySubscription!.startedAt) - Date.parse(a.mySubscription!.startedAt))[0];
-  const activeBotSummary = !tradingBotsLoaded ? "Loading subscribed bot…" : latestSubscribedBot ? `Current bot: ${latestSubscribedBot.name}` : "No active bot subscription";
   const placeSpotOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!requireRealAccount()) return;
@@ -738,7 +750,19 @@ function HomePageInner() {
   // valid 1-minute timer rather than silently becoming "no expiry".
   const computeDurationMinutes = (on: boolean, amount: string, unit: DurationUnitId): number | null =>
     on ? Math.max(MIN_DURATION_MINUTES, Math.round((Number(amount) || 0) * minutesPerUnit(unit))) : null;
-  const loadTradingBots = async () => { try { const res = await fetch("/api/bots", { cache: "no-store" }); if (!res.ok) return; const result = await res.json(); if (Array.isArray(result.bots)) setTradingBots(result.bots); } catch { /* ignore */ } finally { setTradingBotsLoaded(true); } };
+  const loadTradingBots = async () => {
+    setTradingBotsLoaded(false); setTradingBotsError("");
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 15000);
+    try {
+      const res = await fetch("/api/bots", { cache: "no-store", signal: controller.signal });
+      if (!res.ok) throw new Error("Unable to load bot plans.");
+      const result = await res.json();
+      if (!Array.isArray(result.bots)) throw new Error("Unable to load bot plans.");
+      setTradingBots(result.bots);
+    } catch (error) { setTradingBotsError(error instanceof Error && error.name === "AbortError" ? "Loading bot plans timed out." : "Unable to load bot plans."); }
+    finally { window.clearTimeout(timeout); setTradingBotsLoaded(true); }
+  };
   const loadBotSubHistory = async () => { try { const res = await fetch("/api/bot-subscriptions", { cache: "no-store" }); if (!res.ok) return; const result = await res.json(); if (Array.isArray(result.subscriptions)) setBotSubHistory(result.subscriptions); } catch { /* ignore */ } };
   useEffect(() => ready && page === "Trading Bot" ? deferEffect(() => { void loadTradingBots(); void loadBotSubHistory(); }) : undefined, [ready, page]);
   const subscribeToBot = async (bot: TradingBot) => {
@@ -818,17 +842,35 @@ function HomePageInner() {
   const transferProfitsToCapital = async () => {
     if (!requireRealAccount() || profitTransferBusy) return;
     if (data.user.profitBalance <= 0) return notify("There are no profits available to move to Capital.", true);
-    if (!(await confirm({ title: "Move all profits to Capital?", message: `${money(data.user.profitBalance)} will be transferred from Profits to Capital. Profits must be moved to Capital before you can request a withdrawal.`, confirmLabel: "Move to Capital" }))) return;
     setProfitTransferBusy(true);
     try {
-      const res = await fetch("/api/profits/transfer-to-capital", { method: "POST" });
+      const send = (checkOnly: boolean) => fetch("/api/profits/transfer-to-capital", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ checkOnly }) });
+      const handleDenial = async (res: Response, result: { error?: string; code?: string }) => {
+        if (res.status !== 403 || result.code !== "PROFIT_TRANSFER_DISABLED") return false;
+        setProfitTransferBlocked(result.error || "You cannot withdraw profits to capital because your trade has not been marked as completed by an admin.");
+        await refresh();
+        return true;
+      };
+      const check = await send(true);
+      const checkResult = await check.json();
+      if (await handleDenial(check, checkResult)) return;
+      if (!check.ok) throw new Error(checkResult.error || "Unable to check profit transfer permission.");
+      if (!(await confirm({ title: "Move all profits to Capital?", message: `${money(data.user.profitBalance)} will be transferred from Profits to Capital. Profits must be moved to Capital before you can request a withdrawal.`, confirmLabel: "Move to Capital" }))) return;
+      const res = await send(false);
       const result = await res.json();
+      if (await handleDenial(res, result)) return;
       if (!res.ok) throw new Error(result.error || "Unable to move profits to Capital.");
       notify(result.message || "Profits moved to Capital.");
       await refresh();
     } catch (error) { notify(error instanceof Error ? error.message : "Unable to move profits to Capital.", true); } finally { setProfitTransferBusy(false); }
   };
   const card = (icon: typeof Wallet, label: string, value: string, foot: React.ReactNode, tone = "blue", extraClass = "") => { const Icon = icon; return <div className={`stat-card ${extraClass}`}><div className="stat-top"><span className={`stat-icon ${tone}`}><Icon size={19}/></span><MoreHorizontal size={20} className="dots-icon"/></div><span className="stat-label">{label}</span><strong className="stat-value">{hideBalance ? "••••••" : value}</strong><div className="stat-foot">{foot}</div></div>; };
+
+  const activeTradeCard = () => <div className="stat-card active-bot-card">
+    <div className="stat-top"><span className="stat-icon purple"><Bot size={19}/></span><button type="button" className="active-bot-link" onClick={() => go("Trading Bot")}>View plans <ArrowRight size={13}/></button></div>
+    <span className="stat-label">Active trade</span>
+    {!ready && workspaceError ? <><strong className="active-bot-name">Unable to load bot</strong><div className="stat-foot" role="alert">{workspaceError} <button type="button" className="active-bot-link" disabled={refreshing} onClick={() => void refresh()}>Retry</button></div></> : !ready ? <><strong className="active-bot-name">Loading…</strong><div className="stat-foot">Checking your bot plans</div></> : !data.currentBot ? <><strong className="active-bot-name">No active bot</strong><div className="stat-foot">{workspaceError ? <>Could not refresh; showing last loaded status. <button type="button" className="active-bot-link" disabled={refreshing} onClick={() => void refresh()}>Retry</button></> : "Explore bot plans to get started."}</div></> : <><strong className="stat-value">{hideBalance ? "••••••" : money(data.currentBot.allocation)}</strong><div className="active-bot-allocation"><span>Current bot</span><strong>{data.currentBot.name}</strong></div><div className="stat-foot">{workspaceError ? <>Could not refresh; showing last loaded plan. <button type="button" className="active-bot-link" disabled={refreshing} onClick={() => void refresh()}>Retry</button></> : data.currentBot.activePlanCount > 1 ? `Most recently started · ${data.currentBot.activePlanCount} active bot plans` : "Most recently started active bot plan"}</div></>}
+  </div>;
 
   // Full-screen gate: a signed-in-but-unverified user sees this instead of
   // the dashboard until they enter the 4-digit code emailed at signup.
@@ -890,7 +932,7 @@ function HomePageInner() {
         </div>
         <div className="stats-grid">
           {card(CreditCard, "Capital", money(data.user.cashBalance), <span>{<LocalizedText text={"Available for trades"}/>}</span>, "orange")}
-          {card(Bot, "Active trade", money(portfolioValue), <span>{activeBotSummary}</span>, "purple")}
+          {activeTradeCard()}
           {card(Gift, "Profits", money(data.user.profitBalance), <><span>{<LocalizedText text={"Profits earned"}/>}</span><button type="button" className="profit-transfer-btn" disabled={profitTransferBusy || data.user.profitBalance <= 0} onClick={() => void transferProfitsToCapital()}>{profitTransferBusy ? "Moving…" : "Withdraw to Capital"}<ArrowRight size={12}/></button></>, "green", "profit-card-wide")}
         </div>
         <StatisticsGauges user={data.user} money={money} hideBalance={hideBalance}/>
@@ -951,7 +993,7 @@ function HomePageInner() {
         <PageTitle title={translateUI("My portfolio")} description={translateUI("Review your recorded asset holdings and purchase amounts.")}/>
         <div className="stats-grid">
           {card(Wallet, "Total portfolio", money(totalBalance), <span>{<LocalizedText text={"Cash + invested assets + profits"}/>}</span>)}
-          {card(Bot, "Active trade", money(portfolioValue), <span>{activeBotSummary}</span>, "purple")}
+          {activeTradeCard()}
           {card(CreditCard, "Capital", money(data.user.cashBalance), <span>{<LocalizedText text={"Available for trades"}/>}</span>, "green")}
           {card(Gift, "Profits", money(data.user.profitBalance), <><span>{<LocalizedText text={"Credited by admin"}/>}</span><button type="button" className="profit-transfer-btn" disabled={profitTransferBusy || data.user.profitBalance <= 0} onClick={() => void transferProfitsToCapital()}>{profitTransferBusy ? "Moving…" : "Withdraw to Capital"}<ArrowRight size={12}/></button></>, "orange", "profit-card-wide")}
         </div>
@@ -960,7 +1002,7 @@ function HomePageInner() {
         <PageTitle title={translateUI("Trading bot plans")} description={translateUI("Choose a capital range and enter an amount to start a plan.")}/>
         <div className="feature-banner bot-banner"><div className="feature-icon"><Bot size={26}/></div><div><span className="banner-eyebrow">{<LocalizedText text={"EIGHT TIERS · CLEAR CAPITAL RANGES"}/>}</span><h2>{<LocalizedText text={"Choose a plan that fits your allocation."}/>}</h2><p>{<LocalizedText text={"Select a strategy profile, choose an amount within its range, and pay from Capital. Bot plans do not expire and can be purchased more than once."}/>}</p></div><div className="banner-art"><Bot size={100} strokeWidth={1}/></div></div>
         <div className="section-title-row"><div><h2>{<LocalizedText text={"Choose your bot plan"}/>}</h2><p>{<LocalizedText text={"Enter an amount inside the plan range to get started."}/>}</p></div><span className="subtle-label">{tradingBots.filter(b=>b.mySubscription).length} {<LocalizedText text={"active plans"}/>}</span></div>
-        {!tradingBotsLoaded ? <div className="no-results">{<LocalizedText text={"Loading bots..."}/>}</div> : tradingBots.length === 0 ? <EmptyState icon={Bot} title={translateUI("No bots available yet")} text="Check back soon — an admin hasn't added any trading bots yet."/> : <div className="trader-grid bot-plan-grid">{tradingBots.map(b=>{
+        {!tradingBotsLoaded ? <div className="no-results">{<LocalizedText text={"Loading bots..."}/>}</div> : tradingBotsError ? <div className="no-results" role="alert">{tradingBotsError} <button type="button" className="outline-btn" onClick={() => void loadTradingBots()}>Try again</button></div> : tradingBots.length === 0 ? <EmptyState icon={Bot} title={translateUI("No bots available yet")} text="Check back soon — an admin hasn't added any trading bots yet."/> : <div className="trader-grid bot-plan-grid">{tradingBots.map(b=>{
           const subscribed = !!b.mySubscription;
           const minAmount = Number(b.minAllocation);
           const maxAmount = Number(b.maxAllocation);
@@ -1260,6 +1302,7 @@ function HomePageInner() {
       <footer className="main-footer"><span>{<LocalizedText text={"© 2026 Denary Drill Capital Markets. Built for curious traders."}/>}</span><span><ShieldCheck size={14}/> {<LocalizedText text={"Live trading · Not financial advice"}/>}</span></footer>
     </main></div>
     {toast && <div className={`toast ${toast.error ? "error":""}`}><span>{toast.error ? <X size={17}/>:<Check size={17}/>}</span><LocalizedText text={toast.text}/><button onClick={()=>setToast(null)}><X size={15}/></button></div>}
+    {profitTransferBlocked && <div className="modal-overlay" onMouseDown={e => { if (e.target === e.currentTarget) setProfitTransferBlocked(""); }}><div className="confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="profit-transfer-denied-title" aria-describedby="profit-transfer-denied-message"><div className="confirm-modal-icon danger"><AlertTriangle size={22}/></div><h2 id="profit-transfer-denied-title">Profit transfer unavailable</h2><p id="profit-transfer-denied-message">{profitTransferBlocked}</p><div className="confirm-modal-actions"><button type="button" className="primary-btn" autoFocus onClick={() => setProfitTransferBlocked("")}>OK</button></div></div></div>}
     {authMode==="login" && <div className="modal-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setAuthMode(null);}}><div className="auth-modal"><button className="modal-close" onClick={()=>setAuthMode(null)} aria-label={translateUI("Close")}><X size={20}/></button><div className="modal-brand"><div className="brand-icon"><DdcmMark size={23}/></div><span className="ddcm-wordmark">DDCM</span></div><h2>{t("Welcome back")}</h2><p>{t("Sign in to pick up right where you left off.")}</p><form onSubmit={authenticate}><label className="input-label">{t("Email or username")}</label><input className="text-input" placeholder={translateUI("you@example.com or username")} value={authIdentifier} onChange={e=>setAuthIdentifier(e.target.value)} required/><label className="input-label">{t("Password")}</label><input className="text-input" type="password" placeholder={translateUI("At least 8 characters")} value={authPassword} onChange={e=>setAuthPassword(e.target.value)} required/><div className="modal-forgot"><button type="button" onClick={()=>{setAuthMode(null);setForgotPasswordOpen(true);}}>{t("Forgot password?")}</button></div><button className="primary-btn full-btn" disabled={loading}>{loading?t("Please wait..."):t("Sign in")}<ArrowRight size={17}/></button></form><div className="modal-switch">{t("New to Denary Drill Capital Markets?")} <button onClick={()=>setAuthMode("register")}>{t("Create account")}</button></div><div className="modal-security"><LockKeyhole size={14}/> {t("Your account is secured with encrypted credentials")}</div></div></div>}
     {authMode==="register" && <RegisterModal onClose={()=>setAuthMode(null)} onSwitchToLogin={()=>setAuthMode("login")} onRegistered={handleRegistered}/>}
     {forgotPasswordOpen && <ForgotPasswordModal onClose={()=>setForgotPasswordOpen(false)} onSwitchToLogin={()=>{setForgotPasswordOpen(false);setAuthMode("login");}}/>}

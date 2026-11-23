@@ -10,7 +10,8 @@ export default async function LandingPage({ searchParams }: { searchParams: Prom
   const params = await searchParams;
   const ref = typeof params.ref === "string" ? params.ref.trim().slice(0, 100) : "";
   const supportEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(process.env.SUPPORT_EMAIL || "") ? process.env.SUPPORT_EMAIL! : null;
-  const hasChat = Boolean(process.env.NEXT_PUBLIC_SMARTSUPP_KEY);
+  const jivo = /^[A-Za-z0-9_-]{1,100}$/.test(process.env.NEXT_PUBLIC_JIVO_WIDGET_ID?.trim() ?? "");
+  const hasChat = jivo || Boolean(process.env.NEXT_PUBLIC_SMARTSUPP_KEY);
   const signup = ref ? `/sign-up?ref=${encodeURIComponent(ref)}` : "/sign-up";
   return <main className={styles.landing}>
     <header className={styles.header}><div className={styles.navWrap}>
@@ -42,7 +43,7 @@ export default async function LandingPage({ searchParams }: { searchParams: Prom
       <details><summary>How do withdrawals work?<span>+</span></summary><p>Move all profits to capital before submitting a withdrawal. The requested amount is reserved pending manual review and returned if the request is rejected.</p></details>
       <details><summary>Are returns guaranteed?<span>+</span></summary><p>No. Trading involves risk, and returns are not guaranteed. Review the available information carefully before making decisions.</p></details>
     </div></div></div></section>
-    <section id="contact" className={styles.contact}><div className={styles.container}><div className={styles.sectionLabel}><span>CONTACT US</span><span>WE ARE HERE TO HELP</span></div><div className={styles.contactGrid}><div><h2>Let’s start a<br/><em>conversation.</em></h2><p>Have a question about your account or the platform? Get in touch using an available support channel.</p></div><LandingContact email={supportEmail} chat={hasChat}/></div></div></section>
+    <section id="contact" className={styles.contact}><div className={styles.container}><div className={styles.sectionLabel}><span>CONTACT US</span><span>WE ARE HERE TO HELP</span></div><div className={styles.contactGrid}><div><h2>Let’s start a<br/><em>conversation.</em></h2><p>Have a question about your account or the platform? Get in touch using an available support channel.</p></div><LandingContact email={supportEmail} chat={hasChat} jivo={jivo}/></div></div></section>
     <section className={styles.cta}><div className={styles.ctaInner}><div><span>YOUR WORKSPACE AWAITS</span><h2>A clearer way<br/><em>forward.</em></h2><p>Find your perspective with Denary Drill Capital Markets.</p></div><Link href={signup} className={styles.ctaButton}>Get started <ArrowUpRight size={18}/></Link></div></section>
     <footer className={styles.footer}><div className={styles.footerMain}><div><Link href="/" className={styles.logo}><span className={styles.logoMark}><DdcmMark size={23}/></span> DDCM</Link><p>Denary Drill Capital Markets</p></div><div className={styles.footerLinks}><a href="#about">About</a><a href="#features">Features</a><a href="#plans">Bot plans</a><a href="#faq">FAQs</a><a href="#contact">Contact</a><Link href="/sign-in">Sign in</Link><Link href={signup}>Create account</Link></div></div><div className={styles.footerBottom}><span>© {new Date().getFullYear()} Denary Drill Capital Markets.</span><span>Trading involves risk. No returns are guaranteed.</span></div></footer>
   </main>;

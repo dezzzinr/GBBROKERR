@@ -95,6 +95,7 @@ export const users = pgTable("users", {
   //   locked    - cannot log in at all; existing sessions are terminated
   accountStatus: text("account_status").notNull().default("active"),
   maxTradeAmount: numeric("max_trade_amount", { precision: 18, scale: 2 }), // only enforced while accountStatus = "limited"
+  profitTransferEnabled: boolean("profit_transfer_enabled").notNull().default(false), // admin-controlled permission; disabled by default
   withdrawalsBlocked: boolean("withdrawals_blocked").notNull().default(false), // only enforced while accountStatus = "limited"
   statusReason: text("status_reason"), // admin-entered note shown to other admins (and partially to the user)
   statusUpdatedAt: timestamp("status_updated_at", { withTimezone: true }),

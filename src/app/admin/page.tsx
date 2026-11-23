@@ -34,7 +34,7 @@ type WithdrawalRequestRow = {
 };
 type DepositAccountRow = { id: string; method: string; label: string; instructions: string; isActive: boolean; createdAt: string; updatedAt: string };
 
-type AdminUserRow = { id: string; name: string; email: string; role: string; isDemo: boolean; cashBalance: string; profitBalance: string; targetBalance: string; targetProgressPercent: string; signalStrength: string; signalPrice100: string | null; emailVerifiedAt: string | null; accountStatus: string; maxTradeAmount: string | null; withdrawalsBlocked: boolean; statusReason: string | null; statusUpdatedAt: string | null; createdAt: string; username?: string | null; phone?: string | null; country?: string | null; currency?: string | null };
+type AdminUserRow = { id: string; name: string; email: string; role: string; isDemo: boolean; cashBalance: string; profitBalance: string; targetBalance: string; targetProgressPercent: string; signalStrength: string; signalPrice100: string | null; emailVerifiedAt: string | null; accountStatus: string; maxTradeAmount: string | null; withdrawalsBlocked: boolean; profitTransferEnabled: boolean; statusReason: string | null; statusUpdatedAt: string | null; createdAt: string; username?: string | null; phone?: string | null; country?: string | null; currency?: string | null };
 type UserDetail = {
   user: AdminUserRow;
   holdings: { id: string; symbol: string; quantity: string; avgPrice: string }[];
@@ -293,6 +293,7 @@ function AdminPageInner() {
   const [editUserForm, setEditUserForm] = useState({ name: "", email: "", role: "user" });
   const [editUserBusy, setEditUserBusy] = useState(false);
   const [statusForm, setStatusForm] = useState({ accountStatus: "active" as AccountStatus, maxTradeAmount: "", withdrawalsBlocked: false, statusReason: "" });
+  const [profitPermissionBusy, setProfitPermissionBusy] = useState(false);
   const [statusBusy, setStatusBusy] = useState(false);
   const [balanceForm, setBalanceForm] = useState({ newBalance: "", note: "", currency: "USD" });
   const [balanceBusy, setBalanceBusy] = useState(false);
@@ -453,6 +454,20 @@ function AdminPageInner() {
       notify("Account standing updated");
       await loadUserDetail(selectedUserId);
     } catch (error) { notify(error instanceof Error ? error.message : "Something went wrong", true); } finally { setStatusBusy(false); }
+  };
+
+  const setProfitTransferPermission = async (enabled: boolean) => {
+    if (!selectedUserId || profitPermissionBusy) return;
+    if (!(await confirm({ title: enabled ? "Enable profit transfers?" : "Disable profit transfers?", message: enabled ? "Allow this user to move profits to capital until you disable this permission. Confirm their trade has been completed before enabling." : "This user will no longer be able to move profits to capital until you enable it again.", confirmLabel: enabled ? "Enable" : "Disable" }))) return;
+    setProfitPermissionBusy(true);
+    try {
+      const response = await fetch(`/api/admin/users/${selectedUserId}/profit-transfer`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Unable to update permission.");
+      notify(enabled ? "Profit transfers enabled" : "Profit transfers disabled");
+      await loadUserDetail(selectedUserId);
+    } catch (error) { notify(error instanceof Error ? error.message : "Unable to update permission.", true); }
+    finally { setProfitPermissionBusy(false); }
   };
 
   const saveBalance = async (e: React.FormEvent) => {
@@ -867,6 +882,12 @@ function AdminPageInner() {
                     <textarea className="text-input" rows={2} value={statusForm.statusReason} onChange={e => setStatusForm({ ...statusForm, statusReason: e.target.value })} maxLength={500}/>
                     <button className="primary-btn full-btn" disabled={statusBusy} style={{ marginTop: 14 }}><ShieldAlert size={15}/> {statusBusy ? translateUI("Saving...") : translateUI("Update standing")}</button>
                   </form>
+                </section>
+
+                <section className="panel admin-panel">
+                  <SectionHeadSimple title="Profit to capital permission" subtitle="Enable after confirming the user's trade is complete. This setting stays enabled until you disable it."/>
+                  <div className="profile-readonly-row"><span>Transfers to capital</span><strong>{userDetail.user.profitTransferEnabled ? "Enabled" : "Disabled"}</strong></div>
+                  <button type="button" className={userDetail.user.profitTransferEnabled ? "outline-btn full-btn" : "primary-btn full-btn"} disabled={profitPermissionBusy} onClick={() => void setProfitTransferPermission(!userDetail.user.profitTransferEnabled)} style={{ marginTop: 14 }}>{profitPermissionBusy ? "Saving…" : userDetail.user.profitTransferEnabled ? "Disable transfers" : "Enable transfers"}</button>
                 </section>
 
                 <section className="panel admin-panel">

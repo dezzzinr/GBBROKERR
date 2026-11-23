@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { users, holdings, trades, transactions, planSubscriptions, plans, notifications, botSubscriptions } from "@/db/schema";
-import { desc, eq, and, sql, gt, isNull, asc } from "drizzle-orm";
+import { users, holdings, trades, transactions, planSubscriptions, plans, notifications, botSubscriptions, botProducts } from "@/db/schema";
+import { desc, eq, and, sql, gt, isNull, asc, or } from "drizzle-orm";
 import { getUser, clearSession } from "@/lib/auth";
 import { needsEmailVerification } from "@/lib/email-verification";
 import { getFxRate } from "@/lib/fx-server";
+import { BOT_PLAN_TIERS } from "@/lib/bots";
 import { DEFAULT_PLAN_SUBSCRIPTION_MS } from "@/lib/subscriptions";
 
 // Every user should always have a plan - if they've never subscribed to
@@ -35,13 +36,20 @@ export async function GET(request: NextRequest) {
     }
     if (user?.isDemo) return await clearSession(request, bad("Demo access has been removed. Please sign in with a registered account.", 401));
     if (!user) return bad("Please sign in to continue.", 401);
-    const [h, t, tx, botPlanTotals, currentPlan, notifRows, unreadCount, fx] = await Promise.all([
+    const [h, t, tx, botPlanTotals, activeBotPlans, currentPlan, notifRows, unreadCount, fx] = await Promise.all([
       db.select().from(holdings).where(eq(holdings.userId, user.id)),
       db.select().from(trades).where(eq(trades.userId, user.id)).orderBy(desc(trades.createdAt)).limit(50),
       db.select().from(transactions).where(eq(transactions.userId, user.id)).orderBy(desc(transactions.createdAt)).limit(50),
       db.select({ amount: sql<string>`coalesce(sum(${botSubscriptions.amount}), 0)::text` })
         .from(botSubscriptions)
         .where(and(eq(botSubscriptions.userId, user.id), eq(botSubscriptions.capitalDebited, true))),
+      // Active subscriptions are independent of whether the product remains
+      // visible in the current catalog. Admin-started subscriptions use the
+      // same records as user-started ones.
+      db.select({ productId: botSubscriptions.botProductId, name: botProducts.name, amount: botSubscriptions.amount, startedAt: botSubscriptions.startedAt })
+        .from(botSubscriptions).innerJoin(botProducts, eq(botProducts.id, botSubscriptions.botProductId))
+        .where(and(eq(botSubscriptions.userId, user.id), or(isNull(botSubscriptions.expiresAt), gt(botSubscriptions.expiresAt, new Date()))))
+        .orderBy(desc(botSubscriptions.startedAt), desc(botSubscriptions.id)),
       db.select({ planName: plans.name, expiresAt: planSubscriptions.expiresAt, amount: planSubscriptions.amount })
         .from(planSubscriptions)
         .innerJoin(plans, eq(planSubscriptions.planId, plans.id))
@@ -59,6 +67,15 @@ export async function GET(request: NextRequest) {
       const defaulted = await ensureDefaultPlan(user.id);
       if (defaulted) plan = defaulted;
     }
+    const latestBot = activeBotPlans[0];
+    const activeBotCount = new Set(activeBotPlans.map(row => row.productId)).size;
+    const currentBot = latestBot ? {
+      id: latestBot.productId,
+      name: BOT_PLAN_TIERS.find(tier => tier.id === latestBot.productId)?.name ?? latestBot.name,
+      allocation: activeBotPlans.filter(row => row.productId === latestBot.productId).reduce((total, row) => total + Number(row.amount), 0),
+      startedAt: latestBot.startedAt,
+      activePlanCount: activeBotCount,
+    } : null;
     const response = NextResponse.json({
       user: {
         id: user.id,
@@ -77,6 +94,7 @@ export async function GET(request: NextRequest) {
         accountStatus: user.accountStatus,
         maxTradeAmount: user.maxTradeAmount == null ? null : Number(user.maxTradeAmount),
         withdrawalsBlocked: user.withdrawalsBlocked,
+        profitTransferEnabled: user.profitTransferEnabled,
         statusReason: user.statusReason,
         profilePhoto: user.profilePhoto,
         currency: "USD",
@@ -84,6 +102,7 @@ export async function GET(request: NextRequest) {
       },
       holdings: h,
       activeTradeValue: Number(botPlanTotals[0]?.amount ?? 0),
+      currentBot,
       trades: t,
       transactions: tx,
       plan: plan?.planName ?? null,

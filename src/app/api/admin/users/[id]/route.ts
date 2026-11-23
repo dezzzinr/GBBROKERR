@@ -24,6 +24,7 @@ const PUBLIC_COLUMNS = {
   accountStatus: users.accountStatus,
   maxTradeAmount: users.maxTradeAmount,
   withdrawalsBlocked: users.withdrawalsBlocked,
+  profitTransferEnabled: users.profitTransferEnabled,
   statusReason: users.statusReason,
   statusUpdatedAt: users.statusUpdatedAt,
   createdAt: users.createdAt,
