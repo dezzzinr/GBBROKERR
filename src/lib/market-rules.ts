@@ -29,7 +29,7 @@ export function executionGate(instrument: Instrument, quote: Quote | undefined, 
     ? "Bond yields are reference-only. Explore a bond ETF for simulated exposure."
     : "An index is a benchmark, not a tradable instrument. Explore a related ETF.";
   if (!quote || quote.price === null || !Number.isFinite(quote.price) || quote.price <= 0) return "A usable market quote is unavailable for this instrument.";
-  if (instrument.quoteCurrency !== "USD") return "This instrument needs settlement-currency conversion before paper trading can be enabled.";
+  if (instrument.quoteCurrency !== "USD") return "This instrument needs settlement-currency conversion before trading can be enabled.";
   if (quote.status === "unavailable") return "Market data is unavailable for this instrument.";
   if (quote.status === "demo") return null;
   if (instrument.marketSession === "provider" && quote.marketOpen !== true) return "The market is closed or its session status is unknown. New paper fills are paused.";

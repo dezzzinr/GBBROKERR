@@ -1,6 +1,6 @@
 # AvaTrades
 
-A crypto paper-trading web app built with Next.js App Router, Drizzle ORM, and PostgreSQL. Visitors can explore immediately in a seeded demo workspace or create an account with their own persistent simulation balance.
+A crypto trading web app built with Next.js App Router, Drizzle ORM, and PostgreSQL. Visitors can explore immediately in a seeded demo workspace or create an account with their own persistent account balance.
 
 ## Connect to Neon
 
@@ -56,12 +56,12 @@ AvaTrades reads USD spot market prices, 24-hour and 7-day changes, 7-day sparkli
 
 Keyless access may work for local evaluation but is rate-limited by shared IP. For deployment, create a free **Demo API key** in the [CoinGecko Developer Dashboard](https://www.coingecko.com/en/developers/dashboard) and set `COINGECKO_API_KEY` in your local `.env` and in Vercel's environment variables. This is read **only on the server** and sent as the `x-cg-demo-api-key` header. Paid Pro keys can instead be provided as `COINGECKO_PRO_API_KEY`; the app uses the appropriate Pro host and header. Do not expose a key using `NEXT_PUBLIC_`.
 
-The current market snapshot is available at `/api/market`; chart data at `/api/market/chart?symbol=BTC&period=7D`. When provider data is unavailable, old quotes may display as **stale**, but paper trading is paused until fresh quotes return. Portfolio historical charts estimate the value of **today's positions** using past market prices; they are not a ledger-based record of actual historical account value. Market-signal cards reflect observed market momentum and 24-hour ranges, not advice or trading instructions.
+The current market snapshot is available at `/api/market`; chart data at `/api/market/chart?symbol=BTC&period=7D`. When provider data is unavailable, old quotes may display as **stale**, but trading is paused until fresh quotes return. Portfolio historical charts estimate the value of **today's positions** using past market prices; they are not a ledger-based record of actual historical account value. Market-signal cards reflect observed market momentum and 24-hour ranges, not advice or trading instructions.
 
 ## Features
 
 - Registration and login with salted password hashes and HTTP-only database-backed sessions
-- Live market data, coin images, candlestick (OHLC) charts with a volume strip, and a paper-trading dashboard
+- Live market data, coin images, candlestick (OHLC) charts with a volume strip, and a trading dashboard
 - Full order-ticket trading: Market, Limit, Stop-Loss, and Take-Profit orders with an open-orders book and one-click cancellation — no fees, no slippage, exact fills at the quoted/trigger price
 - Margin/leverage trading: isolated-margin long/short positions (2x–100x) with live unrealized P&L, optional take-profit/stop-loss, and automatic liquidation
 - Portfolio valuation, server-verified simulated buy/sell execution, and trade history
@@ -119,7 +119,7 @@ Copy trading is fully admin-curated — there is no seeded or hardcoded trader r
 
 1. An admin adds traders under **Admin panel → Copy traders** (`/admin`), setting their name, handle, avatar color, focus (e.g. "BTC, ETH"), risk level (Low/Moderate/High), reported return %, win rate, and — required — the **subscription price** charged for a 7-day subscription.
 2. Users browse the roster on the **Copy Trading** page, which shows each trader's stats, price, and a live **active subscribers** count (computed in real time from non-expired subscriptions, not an admin-entered vanity number).
-3. Clicking **Subscribe** charges the trader's current price from the user's paper-trading cash balance (free/$0 traders can be subscribed to with no charge) and logs a `subscription` transaction. The subscription starts immediately and **expires in exactly 7 days** — there is no auto-renewal; users resubscribe once it lapses.
+3. Clicking **Subscribe** charges the trader's current price from the user's cash balance (free/$0 traders can be subscribed to with no charge) and logs a `subscription` transaction. The subscription starts immediately and **expires in exactly 7 days** — there is no auto-renewal; users resubscribe once it lapses.
 4. A user can only hold one active subscription per trader at a time; re-subscribing before expiry is blocked with a friendly message showing when it unlocks again. Past and current subscriptions are listed in a "My subscriptions" history panel with countdowns.
 5. Admins can edit a trader's profile/stats/price at any time (price changes only affect future subscriptions — past subscriptions keep the price that was charged at the time), toggle them active/hidden, or delete them. Deleting is blocked with a clear message if the trader has subscription history; deactivate instead to retire them while preserving records.
 
@@ -146,7 +146,7 @@ Subscription plans follow the same admin-curated pattern — `npm run seed` prov
 4. A "My plan subscriptions" history table shows past and current plan subscriptions with their price, start date, and expiry.
 5. Admins can edit a plan's price/description/features/feature order/featured flag at any time (price changes only affect future subscriptions), toggle active/hidden, or delete it. Deleting is blocked with a clear message if the plan has subscription history; deactivate instead to retire it while preserving records.
 
-**Seeded starter catalog (4 plans):** Starter ($0/wk — Paper trading dashboard, Market overview, Portfolio tracking, Basic trade history), Pro ($15/wk, featured — adds Trading bot subscriptions, Copy trading subscriptions, Advanced market signals, Priority insights), Elite ($35/wk — adds Unlimited bot instances, All trading signals, Advanced portfolio analytics, VIP experience), Institutional ($75/wk — adds Dedicated account concierge, Early access to new bots & traders, Custom portfolio reporting, Priority support response).
+**Seeded starter catalog (4 plans):** Starter ($0/wk — Trading dashboard, Market overview, Portfolio tracking, Basic trade history), Pro ($15/wk, featured — adds Trading bot subscriptions, Copy trading subscriptions, Advanced market signals, Priority insights), Elite ($35/wk — adds Unlimited bot instances, All trading signals, Advanced portfolio analytics, VIP experience), Institutional ($75/wk — adds Dedicated account concierge, Early access to new bots & traders, Custom portfolio reporting, Priority support response).
 
 ## Admin user management
 
@@ -260,7 +260,7 @@ Every real (non-demo) account gets its own unique, auto-generated, shareable ref
 
 ## New accounts start at a $0 balance
 
-Registering a real account now starts the user's paper-trading cash balance at **$0.00** instead of a pre-loaded $10,000 - they fund it themselves via **Deposit** (or via a referral signup bonus, see above). This makes the deposit flow meaningful from day one instead of optional. The anonymous/guest **demo workspace** is unaffected and still starts pre-loaded (currently $12,540.50 with a small starter portfolio) so visitors can try trading immediately without creating an account or depositing anything - that balance lives in `createDemoUser()` in `src/lib/auth.ts` if you want to change it. Admin-created accounts (**Admin panel → Manage users → Add user**) already defaulted their "Starting balance" field to `0` and are unchanged.
+Registering a real account now starts the user's cash balance at **$0.00** instead of a pre-loaded $10,000 - they fund it themselves via **Deposit** (or via a referral signup bonus, see above). This makes the deposit flow meaningful from day one instead of optional. The anonymous/guest **demo workspace** is unaffected and still starts pre-loaded (currently $12,540.50 with a small starter portfolio) so visitors can try trading immediately without creating an account or depositing anything - that balance lives in `createDemoUser()` in `src/lib/auth.ts` if you want to change it. Admin-created accounts (**Admin panel → Manage users → Add user**) already defaulted their "Starting balance" field to `0` and are unchanged.
 
 ## Confirmation prompts before mutating actions
 

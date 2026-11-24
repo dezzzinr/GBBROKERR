@@ -22,7 +22,7 @@ const BOTS = [
 ];
 
 const PLANS = [
-  { name: "Starter", description: "The essentials to get started trading with confidence.", priceWeekly: 0, features: ["Paper trading dashboard", "Market overview", "Portfolio tracking", "Basic trade history"], isFeatured: false, sortOrder: 0 },
+  { name: "Starter", description: "The essentials to get started trading with confidence.", priceWeekly: 0, features: ["Trading dashboard", "Market overview", "Portfolio tracking", "Basic trade history"], isFeatured: false, sortOrder: 0 },
   { name: "Pro", description: "Powerful tools for traders ready to take the next step.", priceWeekly: 15, features: ["Everything in Starter", "Trading bot subscriptions", "Copy trading subscriptions", "Advanced market signals", "Priority insights"], isFeatured: true, sortOrder: 1 },
   { name: "Elite", description: "The complete experience for serious market explorers.", priceWeekly: 35, features: ["Everything in Pro", "Unlimited bot instances", "All trading signals", "Advanced portfolio analytics", "VIP experience"], isFeatured: false, sortOrder: 2 },
   { name: "Institutional", description: "White-glove tools and priority access for power users.", priceWeekly: 75, features: ["Everything in Elite", "Dedicated account concierge", "Early access to new bots & traders", "Custom portfolio reporting", "Priority support response"], isFeatured: false, sortOrder: 3 },

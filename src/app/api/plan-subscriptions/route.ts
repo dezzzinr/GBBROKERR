@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 }
 
 // Subscribe to a plan for a fixed 7-day (weekly) window at its current
-// price. Charges the user's paper-trading cash balance immediately; no
+// price. Charges the user's cash balance immediately; no
 // renewal is automatic - the user re-subscribes (or switches plans) once a
 // cycle lapses. Switching to a different plan is always allowed; resubscribing
 // to the same plan while it's still active is blocked.

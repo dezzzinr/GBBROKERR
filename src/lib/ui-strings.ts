@@ -18,14 +18,14 @@ export const UI_STRINGS: string[] = [
   "NEW",
   // Sidebar footer
   "Need a hand?", "Explore the platform with your free demo account.", "Explore signals",
-  "Secure paper trading platform",
+  "Secure trading platform",
   // Topbar
   "Workspace", "Search markets...", "Notifications", "No notifications yet", "Admin panel",
   "View profile", "Create an account", "Sign in", "Log out", "Demo account",
   "Exploring in demo mode", "No active plan", "member",
   // Overview page
   "Good to see you,", "Here's what's happening with your portfolio today.",
-  "Paper trading", "Add funds",
+  "Trading account", "Add funds",
   // Common buttons / actions
   "Save", "Cancel", "Submit", "Close", "Continue", "Back", "Next", "Confirm",
   "Buy", "Sell", "Place trade", "Place order", "Place position",
@@ -61,10 +61,10 @@ export const UI_STRINGS: string[] = [
   "Add funds", "Send a payment from outside Denary Drill Capital Markets using one of the methods below, then submit your receipt for admin review.",
   "Withdraw funds", "Request a payout to any platform you choose. An admin reviews and sends it before it's final.",
   "Keep track of every deposit, withdrawal, and plan charge.",
-  "Trade history", "Review every spot trade, order, and leveraged position in your paper-trading account.",
+  "Trade history", "Review every spot trade, order, and leveraged position in your trading account.",
   // Registration modal
   "Create your account", "Join Denary Drill Capital Markets",
-  "Your trading journey starts here. Deposit paper funds anytime to start trading. Fields marked * are required.",
+  "Your trading journey starts here. Add funds anytime to start trading. Fields marked * are required.",
   "Prefer not to specify", "Select your country", "Optional",
   "Your balances will display in", "by default — you can change this later in your profile.",
   "Replace photo", "Upload photo", "Remove",
@@ -287,7 +287,7 @@ export const UI_STRINGS: string[] = [
   "Expired",
   "Expires",
   "Explore",
-  "Explore companies, currencies, commodities, funds, and benchmarks in one paper-trading portfolio.",
+  "Explore companies, currencies, commodities, funds, and benchmarks in one trading portfolio.",
   "Explore markets",
   "Explorer",
   "Export CSV",

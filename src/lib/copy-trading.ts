@@ -1,7 +1,7 @@
 // Shared constants for the copy-trading feature. Admins curate the trader
 // roster (name, stats, price) from the admin panel; users subscribe for a
 // fixed 7-day window and are charged the trader's current subscription
-// price from their paper-trading cash balance.
+// price from their cash balance.
 
 export { SUBSCRIPTION_DAYS, SUBSCRIPTION_MS } from "@/lib/subscriptions";
 export { SUBSCRIPTION_DURATION_OPTIONS, type SubscriptionDurationDays } from "@/lib/catalog-profile";

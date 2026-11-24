@@ -8,7 +8,7 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash"),
   cashBalance: numeric("cash_balance", { precision: 18, scale: 2 }).notNull().default("12540.50"),
   // A separate, admin-managed "profits" balance (e.g. trading/copy-trading
-  // gains credited manually rather than earned via the paper-trading engine).
+  // gains credited manually rather than earned by the trading engine).
   // Not spendable on trades/withdrawals directly - it's a display balance
   // that's folded into the user's "Total balance" alongside cash + holdings.
   // Edited the same way as cashBalance: admin sets it directly, the delta is

@@ -53,7 +53,7 @@ export const TRANSLATION_OVERRIDES: Partial<Record<LanguageCode, Record<string, 
     "Need a hand?": "Potrzebujesz pomocy?",
     "Explore the platform with your free demo account.": "Poznaj platformę dzięki darmowemu kontu demonstracyjnemu.",
     "Explore signals": "Przeglądaj sygnały",
-    "Secure paper trading platform": "Bezpieczna platforma handlu symulowanego",
+    "Secure trading platform": "Bezpieczna platforma handlowa",
 
     // Topbar
     "Workspace": "Przestrzeń robocza",
@@ -73,7 +73,7 @@ export const TRANSLATION_OVERRIDES: Partial<Record<LanguageCode, Record<string, 
     // Overview page
     "Good to see you,": "Dobrze Cię widzieć,",
     "Here's what's happening with your portfolio today.": "Oto co dzieje się dziś z Twoim portfelem.",
-    "Paper trading": "Handel symulowany",
+    "Trading account": "Konto handlowe",
     "Add funds": "Dodaj środki",
 
     // Common buttons / actions
@@ -170,12 +170,12 @@ export const TRANSLATION_OVERRIDES: Partial<Record<LanguageCode, Record<string, 
     "Request a payout to any platform you choose. An admin reviews and sends it before it's final.": "Zamów wypłatę na dowolną wybraną platformę. Administrator weryfikuje ją i realizuje przed finalizacją.",
     "Keep track of every deposit, withdrawal, and plan charge.": "Śledź każdą wpłatę, wypłatę i opłatę za plan.",
     "Trade history": "Historia handlu",
-    "Review every spot trade, order, and leveraged position in your paper-trading account.": "Przeglądaj każdą transakcję spot, zlecenie i pozycję z dźwignią na swoim koncie handlu symulowanego.",
+    "Review every spot trade, order, and leveraged position in your trading account.": "Przeglądaj każdą transakcję spot, zlecenie i pozycję z dźwignią na swoim koncie handlowym.",
 
     // Registration modal
     "Create your account": "Utwórz swoje konto",
     "Join Denary Drill Capital Markets": "Dołącz do Denary Drill Capital Markets",
-    "Your trading journey starts here. Deposit paper funds anytime to start trading. Fields marked * are required.": "Twoja przygoda z handlem zaczyna się tutaj. W dowolnym momencie wpłać środki wirtualne, aby zacząć handlować. Pola oznaczone * są wymagane.",
+    "Your trading journey starts here. Add funds anytime to start trading. Fields marked * are required.": "Twoja przygoda z handlem zaczyna się tutaj. W dowolnym momencie dodaj środki, aby zacząć handlować. Pola oznaczone * są wymagane.",
     "Prefer not to specify": "Wolę nie podawać",
     "Select your country": "Wybierz swój kraj",
     "Optional": "Opcjonalne",

@@ -1,6 +1,6 @@
 // Referral program: every user gets a unique shareable code at registration
 // (never user-chosen). Entering someone else's code at signup links the two
-// accounts and credits a one-time paper-trading bonus to both sides.
+// accounts and credits a one-time account bonus to both sides.
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";

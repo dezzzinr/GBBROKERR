@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 }
 
 // Subscribe to a trader for a fixed 7-day window at their current price.
-// Charges the user's paper-trading cash balance immediately; no renewal is
+// Charges the user's cash balance immediately; no renewal is
 // automatic - the user re-subscribes once the window lapses.
 export async function POST(request: NextRequest) {
   try {
