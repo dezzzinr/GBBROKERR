@@ -4,14 +4,13 @@ import Image from "next/image";
 import LandingPlanExplorer from "@/components/landing-plan-explorer";
 import LandingContact from "@/components/landing-contact";
 import DdcmMark from "@/components/ddcm-mark";
-import { CHAPORT_ENABLED } from "@/lib/chat-config";
 import styles from "./landing.module.css";
 
 export default async function LandingPage({ searchParams }: { searchParams: Promise<{ ref?: string | string[] }> }) {
   const params = await searchParams;
   const ref = typeof params.ref === "string" ? params.ref.trim().slice(0, 100) : "";
   const supportEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(process.env.SUPPORT_EMAIL || "") ? process.env.SUPPORT_EMAIL! : null;
-  const hasChat = CHAPORT_ENABLED;
+  const hasChat = /^[A-Za-z0-9_-]{1,100}$/.test(process.env.NEXT_PUBLIC_SMARTSUPP_KEY?.trim() ?? "");
   const signup = ref ? `/sign-up?ref=${encodeURIComponent(ref)}` : "/sign-up";
   return <main className={styles.landing}>
     <header className={styles.header}><div className={styles.navWrap}>
